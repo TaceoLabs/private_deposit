@@ -11,3 +11,7 @@ publish.workspace = true
 readme.workspace = true
 
 [dependencies]
+ark-ff.workspace = true
+ark-serialize.workspace = true
+mpc-core.workspace = true
+mpc-net.workspace = true

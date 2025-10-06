@@ -13,6 +13,12 @@ publish = false
 readme = "./README.md"
 
 [workspace.dependencies]
+ark-ff = "^0.5.0"
+ark-serialize = { version = "^0.5.0", features = ["derive", "std"] }
+mpc-core = { version = "0.9.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "9d85ce1df31d92ec035ef3dcc599243ac18be46e" }
+mpc-net = { version = "0.4.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "9d85ce1df31d92ec035ef3dcc599243ac18be46e", features = [
+    "local",
+] }
 
 [profile.profiling]
 inherits = "bench"
