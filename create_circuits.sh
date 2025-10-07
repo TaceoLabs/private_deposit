@@ -7,6 +7,6 @@ for CIRCUIT in "${CIRCUITS[@]}"; do
   cd noir/$CIRCUIT
   rm -rf target
   nargo compile --expression-width=1000 --bounded-codegen
-  cp target/$CIRCUIT.json ../../private_deposit/data/${CIRCUIT}_circuit.json
+  cp target/$CIRCUIT.json ../../private_deposit/data/${CIRCUIT}.json
   cd ../..
 done

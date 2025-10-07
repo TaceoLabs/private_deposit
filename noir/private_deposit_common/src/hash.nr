@@ -36,11 +36,11 @@ pub fn hash2(left: Field, right: Field) -> Field {
 // Hashing using the Poseidon2 Blackbox function as a sponge
 pub fn hash2_bb(left: Field, right: Field) -> Field {
     let domain_sep = 0xDEADBEEF as Field;
-    let state = std::hash::poseidon2_permutation([domain_sep, left, right, 0], 4);
-    state[0]
+    let state = std::hash::poseidon2_permutation([domain_sep, left, right, 0], 4); // First element is capacity with domain separator
+    state[1]
 }
 
 pub fn commit1(value: Field, r: Field) -> Field {
-    // crate::hash::hash2(value, r)
-    crate::hash::hash2_bb(value, r)
+    crate::hash::hash2(value, r)
+    // crate::hash::hash2_bb(value, r)
 }

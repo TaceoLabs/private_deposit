@@ -13,11 +13,20 @@ readme.workspace = true
 [dependencies]
 ark-bn254.workspace = true
 ark-ff.workspace = true
+ark-groth16.workspace = true
 ark-serialize.workspace = true
+co-circom.workspace = true
 co-noir.workspace = true
 co-ultrahonk.workspace = true
 eyre.workspace = true
+itertools.workspace = true
 mpc-core.workspace = true
 mpc-net.workspace = true
 noirc-artifacts.workspace = true
+rand.workspace = true
+oblivious_map.workspace = true
 oblivious_map_proof.workspace = true
+
+[dev-dependencies]
+tracing.workspace = true
+tracing-subscriber.workspace = true

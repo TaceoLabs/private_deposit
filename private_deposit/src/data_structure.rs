@@ -1,16 +1,20 @@
 use ark_ff::PrimeField;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use mpc_core::protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State};
+use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 
+pub type DepositValuePlain<F> = DepositValue<F>;
+pub type DepositValueShare<F> = DepositValue<Rep3PrimeFieldShare<F>>;
+
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct DepositValue<F: PrimeField> {
-    pub amount: Rep3PrimeFieldShare<F>,
-    pub blinding: Rep3PrimeFieldShare<F>,
+pub struct DepositValue<V: CanonicalDeserialize + CanonicalSerialize + Clone> {
+    pub amount: V,
+    pub blinding: V,
 }
 
-impl<F: PrimeField> DepositValue<F> {
-    pub fn new(amount: Rep3PrimeFieldShare<F>, blinding: Rep3PrimeFieldShare<F>) -> Self {
+impl<V: CanonicalDeserialize + CanonicalSerialize + Clone> DepositValue<V> {
+    pub fn new(amount: V, blinding: V) -> Self {
         Self { amount, blinding }
     }
 }
@@ -32,12 +36,27 @@ where
     }
 }
 
+impl<K, V> IntoIterator for PrivateDeposit<K, V> {
+    type Item = (K, V);
+    type IntoIter = std::collections::hash_map::IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
+}
+
 impl<K, V> PrivateDeposit<K, V>
 where
     K: std::hash::Hash + Eq,
 {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            inner: HashMap::with_capacity(capacity),
+        }
     }
 
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
@@ -50,6 +69,10 @@ where
 
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.inner.iter()
+    }
+
+    pub fn into_inner(self) -> HashMap<K, V> {
+        self.inner
     }
 
     pub fn len(&self) -> usize {
@@ -81,12 +104,36 @@ where
     }
 }
 
-impl<K, F: PrimeField> PrivateDeposit<K, DepositValue<F>>
+impl<K, F: PrimeField> PrivateDeposit<K, DepositValuePlain<F>>
+where
+    K: std::hash::Hash + Eq + Clone,
+{
+    pub fn share<R: Rng + CryptoRng>(
+        &self,
+        rng: &mut R,
+    ) -> [PrivateDeposit<K, DepositValueShare<F>>; 3] {
+        let mut shares = [
+            PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
+            PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
+            PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
+        ];
+        for (key, values) in self.iter() {
+            let [a1, a2, a3] = rep3::share_field_element(values.amount, rng);
+            let [b1, b2, b3] = rep3::share_field_element(values.blinding, rng);
+            shares[0].insert(key.clone(), DepositValue::new(a1, b1));
+            shares[1].insert(key.clone(), DepositValue::new(a2, b2));
+            shares[2].insert(key.clone(), DepositValue::new(a3, b3));
+        }
+        shares
+    }
+}
+
+impl<K, F: PrimeField> PrivateDeposit<K, DepositValueShare<F>>
 where
     K: std::hash::Hash + Eq,
 {
     // Returns the current deposit value for the given key
-    pub fn read(&self, key: &K) -> Option<&DepositValue<F>> {
+    pub fn read(&self, key: &K) -> Option<&DepositValueShare<F>> {
         self.get(key)
     }
 
@@ -96,7 +143,7 @@ where
         key: K,
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
-    ) -> (Option<DepositValue<F>>, DepositValue<F>) {
+    ) -> (Option<DepositValueShare<F>>, DepositValueShare<F>) {
         let old = self.read(&key).cloned();
         let new_blinding = rep3::arithmetic::rand(rep3_state);
         let new_value = if let Some(old_value) = &old {
@@ -115,7 +162,7 @@ where
         key: K,
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
-    ) -> eyre::Result<(DepositValue<F>, DepositValue<F>)> {
+    ) -> eyre::Result<(DepositValueShare<F>, DepositValueShare<F>)> {
         let old = self.get(&key);
         if old.is_none() {
             return Err(eyre::eyre!("Key not found in HashMap"));
@@ -137,10 +184,10 @@ where
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<(
-        DepositValue<F>,
-        DepositValue<F>,
-        Option<DepositValue<F>>,
-        DepositValue<F>,
+        DepositValueShare<F>,
+        DepositValueShare<F>,
+        Option<DepositValueShare<F>>,
+        DepositValueShare<F>,
     )> {
         let (sender_old, sender_new) = self.withdraw(sender, amount, rep3_state)?;
         let (receiver_old, receiver_new) = self.deposit(receiver, amount, rep3_state);
