@@ -1,8 +1,9 @@
 use ark_ff::PrimeField;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use mpc_core::protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State};
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct DepositValue<F: PrimeField> {
     pub amount: Rep3PrimeFieldShare<F>,
     pub blinding: Rep3PrimeFieldShare<F>,
@@ -84,6 +85,11 @@ impl<K, F: PrimeField> PrivateDeposit<K, DepositValue<F>>
 where
     K: std::hash::Hash + Eq,
 {
+    // Returns the current deposit value for the given key
+    pub fn read(&self, key: &K) -> Option<&DepositValue<F>> {
+        self.get(key)
+    }
+
     // Returns the old and the new deposit value for the given key
     pub fn deposit(
         &mut self,
@@ -103,24 +109,16 @@ where
         (old, new)
     }
 
-    // Returns the current deposit value for the given key
-    pub fn read(&self, key: &K) -> Option<&DepositValue<F>> {
-        self.get(key)
-    }
-
     // Returns the old and the new balance value for the given key
     pub fn withdraw(
         &mut self,
         key: K,
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
-    ) -> std::io::Result<(DepositValue<F>, DepositValue<F>)> {
+    ) -> eyre::Result<(DepositValue<F>, DepositValue<F>)> {
         let old = self.get(&key);
         if old.is_none() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Key not found",
-            ));
+            return Err(eyre::eyre!("Key not found in HashMap"));
         }
         let old = old.unwrap().clone();
         let new_amount = old.amount - amount;
@@ -138,7 +136,7 @@ where
         receiver: K,
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
-    ) -> std::io::Result<(
+    ) -> eyre::Result<(
         DepositValue<F>,
         DepositValue<F>,
         Option<DepositValue<F>>,

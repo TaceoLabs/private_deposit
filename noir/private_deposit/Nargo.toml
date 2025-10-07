@@ -1,8 +1,8 @@
 [package]
 name = "private_deposit"
-type = "lib"
+type = "bin"
 authors = ["TACEO"]
 compiler_version = ">=1.0.0"
 
 [dependencies]
-poseidon2 = { tag = "v0.4.0", git = "https://github.com/TaceoLabs/noir-poseidon", directory = "poseidon2" }
+private_deposit_common = { path = "../private_deposit_common" }

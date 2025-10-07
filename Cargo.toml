@@ -13,12 +13,18 @@ publish = false
 readme = "./README.md"
 
 [workspace.dependencies]
+ark-bn254 = "^0.5.0"
 ark-ff = "^0.5.0"
 ark-serialize = { version = "^0.5.0", features = ["derive", "std"] }
+co-noir = { version = "0.6.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "9d85ce1df31d92ec035ef3dcc599243ac18be46e" }
+co-ultrahonk = { version = "0.5.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "9d85ce1df31d92ec035ef3dcc599243ac18be46e" }
+eyre = "0.6.12"
 mpc-core = { version = "0.9.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "9d85ce1df31d92ec035ef3dcc599243ac18be46e" }
 mpc-net = { version = "0.4.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "9d85ce1df31d92ec035ef3dcc599243ac18be46e", features = [
     "local",
 ] }
+noirc-artifacts = { version = "1.0.0-beta.6", git = "https://github.com/noir-lang/noir/", tag = "v1.0.0-beta.6", package = "noirc_artifacts" }
+oblivious_map_proof = { path = "../oblivious_map/oblivious_map_proof" } # TODO this is not clean
 
 [profile.profiling]
 inherits = "bench"
