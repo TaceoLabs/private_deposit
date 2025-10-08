@@ -1,4 +1,5 @@
 pub mod deposit;
+pub mod transaction;
 pub mod withdraw;
 
 #[cfg(test)]
@@ -59,6 +60,7 @@ impl TestConfig {
     const VERIFIER_CRS: &str = "/data/bn254_g2.dat";
     const DEPOSIT_CIRCUIT: &str = "/data/private_deposit.json";
     const WITHDRAW_CIRCUIT: &str = "/data/private_withdraw.json";
+    const TRANSACTION_CIRCUIT: &str = "/data/private_transaction.json";
 
     const NUM_ITEMS: usize = 100;
     const TEST_RUNS: usize = 5;
@@ -90,6 +92,11 @@ impl TestConfig {
 
     pub fn get_withdraw_program_artifact() -> eyre::Result<ProgramArtifact> {
         let cs_path = format!("{}{}", Self::ROOT, Self::WITHDRAW_CIRCUIT);
+        ultrahonk::get_program_artifact(cs_path)
+    }
+
+    pub fn get_transaction_program_artifact() -> eyre::Result<ProgramArtifact> {
+        let cs_path = format!("{}{}", Self::ROOT, Self::TRANSACTION_CIRCUIT);
         ultrahonk::get_program_artifact(cs_path)
     }
 

@@ -29,8 +29,8 @@ mpc-net = { version = "0.4.0", git = "https://github.com/TaceoLabs/co-snarks", b
 ] }
 noirc-artifacts = { version = "1.0.0-beta.6", git = "https://github.com/noir-lang/noir/", tag = "v1.0.0-beta.6", package = "noirc_artifacts" }
 rand = "0.8.5"
-oblivious_map = { path = "../oblivious_map/oblivious_map" } # TODO this is not clean
-oblivious_map_proof = { path = "../oblivious_map/oblivious_map_proof" } # TODO this is not clean
+oblivious_map = { path = "../oblivious_map/oblivious_map" } # rw/r1cs branch TODO this is not clean
+oblivious_map_proof = { path = "../oblivious_map/oblivious_map_proof" } # rw/r1cs branch  TODO this is not clean
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
