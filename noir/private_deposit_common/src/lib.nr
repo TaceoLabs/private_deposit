@@ -1,6 +1,7 @@
 pub(crate) mod hash;
 
 // The code limits transaction amounts to u64, which should be sufficient for most use cases. This is required for range checks and >= operations.
+// The range check for withdraw is 100 bits at the moment.
 
 // Checks the size of amount and computes a commitment
 fn check_amount(amount: Field, amount_r: Field) -> Field {
@@ -52,7 +53,7 @@ pub fn withdraw(
 // Withdraw without the range check on amount
 fn withdraw_inner(old_balance: Field, old_r: Field, amount: Field, new_r: Field) -> (Field, Field) {
     let new_balance = old_balance - amount;
-    new_balance.assert_max_bit_size::<64>();
+    new_balance.assert_max_bit_size::<100>();
     let old_commitment = hash::commit1(old_balance, old_r);
     let new_commitment = hash::commit1(new_balance, new_r);
     (old_commitment, new_commitment)

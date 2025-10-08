@@ -1,21 +1,53 @@
 pub mod deposit;
+pub mod withdraw;
 
 #[cfg(test)]
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
-#[cfg(test)]
 use ark_ff::PrimeField;
 #[cfg(test)]
-use co_noir::{AcirFormat, Bn254};
+use co_noir::AcirFormat;
+use co_noir::{Bn254, Rep3AcvmType};
 #[cfg(test)]
 use co_ultrahonk::prelude::ProverCrs;
+use mpc_core::{
+    gadgets::poseidon2::Poseidon2,
+    protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State},
+};
+use mpc_net::Network;
 #[cfg(test)]
 use noirc_artifacts::program::ProgramArtifact;
+use oblivious_map::merkle_hash::MpcMerkleHasher;
 #[cfg(test)]
 use oblivious_map_proof::noir::ultrahonk;
 #[cfg(test)]
 use rand::{CryptoRng, Rng};
 #[cfg(test)]
 use std::sync::Arc;
+
+pub(super) type F = ark_bn254::Fr;
+pub(super) type Curve = Bn254;
+
+fn poseidon2_commitment_helper<const I: usize, const I2: usize, F: PrimeField, N: Network>(
+    mut input: [Rep3PrimeFieldShare<F>; I2],
+    net: &N,
+    rep3_state: &mut Rep3State,
+) -> eyre::Result<Vec<Vec<Rep3AcvmType<F>>>> {
+    let domain_separator = F::from(0xDEADBEEFu64);
+    assert_eq!(2 * I, I2);
+    let hasher = Poseidon2::<F, 2, 5>::default();
+    let mut hasher_precomp = hasher.precompute_rep3(I, net, rep3_state)?;
+    for input in input.iter_mut().step_by(2) {
+        rep3::arithmetic::add_assign_public(input, domain_separator, rep3_state.id);
+    }
+
+    let mut result = Vec::with_capacity(I);
+    let (_, traces) =
+        hasher.hash_rep3_generate_noir_trace_many::<N, I, I2>(input, &mut hasher_precomp, net)?;
+    for trace in traces {
+        result.push(trace);
+    }
+    Ok(result)
+}
 
 #[cfg(test)]
 pub(crate) struct TestConfig {}
@@ -26,6 +58,7 @@ impl TestConfig {
     const PROVER_CRS: &str = "/data/bn254_g1.dat";
     const VERIFIER_CRS: &str = "/data/bn254_g2.dat";
     const DEPOSIT_CIRCUIT: &str = "/data/private_deposit.json";
+    const WITHDRAW_CIRCUIT: &str = "/data/private_withdraw.json";
 
     const NUM_ITEMS: usize = 100;
     const TEST_RUNS: usize = 5;
@@ -52,6 +85,11 @@ impl TestConfig {
 
     pub fn get_deposit_program_artifact() -> eyre::Result<ProgramArtifact> {
         let cs_path = format!("{}{}", Self::ROOT, Self::DEPOSIT_CIRCUIT);
+        ultrahonk::get_program_artifact(cs_path)
+    }
+
+    pub fn get_withdraw_program_artifact() -> eyre::Result<ProgramArtifact> {
+        let cs_path = format!("{}{}", Self::ROOT, Self::WITHDRAW_CIRCUIT);
         ultrahonk::get_program_artifact(cs_path)
     }
 
@@ -85,7 +123,6 @@ impl TestConfig {
         map
     }
 
-    #[expect(unused)]
     pub fn get_random_map_key<K, V, R: Rng>(map: &PrivateDeposit<K, V>, rng: &mut R) -> K
     where
         K: std::hash::Hash + Eq + Clone,

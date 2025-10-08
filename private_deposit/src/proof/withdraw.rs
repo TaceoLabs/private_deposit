@@ -1,5 +1,4 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
-use ark_ff::Zero;
 use ark_groth16::Proof;
 use co_circom::{ConstraintMatrices, ProvingKey};
 use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
@@ -16,40 +15,29 @@ use oblivious_map_proof::{
 use super::Curve;
 use super::F;
 
-const NUM_DEPOSIT_COMMITMENTS: usize = 3;
+const NUM_WITHDRAW_COMMITMENTS: usize = 3;
 
 impl<K> PrivateDeposit<K, DepositValueShare<F>>
 where
     K: std::hash::Hash + Eq,
 {
-    fn get_deposit_input(
-        old: Option<DepositValueShare<F>>,
+    fn get_withdraw_input(
+        old: DepositValueShare<F>,
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>,
         new_blinding: Rep3PrimeFieldShare<F>,
-    ) -> (
-        Vec<Rep3AcvmType<F>>,
-        Rep3PrimeFieldShare<F>,
-        Rep3PrimeFieldShare<F>,
-    ) {
-        let mut inputs = Vec::with_capacity(5);
-        let (old_amount, old_blinding) = if let Some(old) = old {
-            inputs.push(Rep3AcvmType::from(old.amount));
-            inputs.push(Rep3AcvmType::from(old.blinding));
-            (old.amount, old.blinding)
-        } else {
-            inputs.push(Rep3AcvmType::from(F::zero()));
-            inputs.push(Rep3AcvmType::from(F::zero()));
-            (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
-        };
-        inputs.push(Rep3AcvmType::from(amount));
-        inputs.push(Rep3AcvmType::from(amount_blinding));
-        inputs.push(Rep3AcvmType::from(new_blinding));
-        (inputs, old_amount, old_blinding)
+    ) -> Vec<Rep3AcvmType<F>> {
+        vec![
+            Rep3AcvmType::from(old.amount),
+            Rep3AcvmType::from(old.blinding),
+            Rep3AcvmType::from(amount),
+            Rep3AcvmType::from(amount_blinding),
+            Rep3AcvmType::from(new_blinding),
+        ]
     }
 
     #[expect(clippy::too_many_arguments)]
-    pub fn deposit_with_ultrahonk_proof<N: Network>(
+    pub fn withdraw_with_ultrahonk_proof<N: Network>(
         &mut self,
         key: K,
         amount: Rep3PrimeFieldShare<F>,
@@ -61,18 +49,18 @@ where
         net1: &N,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<(DepositValueShare<F>, HonkProof<F>, Vec<F>)> {
-        let (old, new) = self.deposit(key, amount, rep3_state);
+        let (old, new) = self.withdraw(key, amount, rep3_state)?;
 
-        let (inputs, old_amount, old_blinding) =
-            Self::get_deposit_input(old, amount, amount_blinding, new.blinding);
+        let inputs =
+            Self::get_withdraw_input(old.to_owned(), amount, amount_blinding, new.blinding);
 
         // let witness = ultrahonk::conoir_witness_extension(inputs, program_artifact, net0, net1)?;
-        let traces = super::poseidon2_commitment_helper::<NUM_DEPOSIT_COMMITMENTS, _, _, _>(
+        let traces = super::poseidon2_commitment_helper::<NUM_WITHDRAW_COMMITMENTS, _, _, _>(
             [
                 amount,
                 amount_blinding,
-                old_amount,
-                old_blinding,
+                old.amount,
+                old.blinding,
                 new.amount,
                 new.blinding,
             ],
@@ -94,7 +82,7 @@ where
     }
 
     #[expect(clippy::too_many_arguments)]
-    pub fn deposit_with_groth16_proof<N: Network>(
+    pub fn withdraw_with_groth16_proof<N: Network>(
         &mut self,
         key: K,
         amount: Rep3PrimeFieldShare<F>,
@@ -106,17 +94,17 @@ where
         net1: &N,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<(DepositValueShare<F>, Proof<Curve>, Vec<F>)> {
-        let (old, new) = self.deposit(key, amount, rep3_state);
+        let (old, new) = self.withdraw(key, amount, rep3_state)?;
 
-        let (inputs, old_amount, old_blinding) =
-            Self::get_deposit_input(old, amount, amount_blinding, new.blinding);
+        let inputs =
+            Self::get_withdraw_input(old.to_owned(), amount, amount_blinding, new.blinding);
 
-        let traces = super::poseidon2_commitment_helper::<NUM_DEPOSIT_COMMITMENTS, _, _, _>(
+        let traces = super::poseidon2_commitment_helper::<NUM_WITHDRAW_COMMITMENTS, _, _, _>(
             [
                 amount,
                 amount_blinding,
-                old_amount,
-                old_blinding,
+                old.amount,
+                old.blinding,
                 new.amount,
                 new.blinding,
             ],
@@ -141,7 +129,7 @@ where
 mod tests {
     use super::*;
     use crate::{data_structure::DepositValuePlain, proof::TestConfig};
-    use ark_ff::UniformRand;
+    use ark_ff::{PrimeField, UniformRand, Zero};
     use itertools::izip;
     use mpc_core::protocols::rep3::{self, Rep3State, conversion::A2BType};
     use mpc_net::local::LocalNetwork;
@@ -149,12 +137,12 @@ mod tests {
     use std::{sync::Arc, thread};
 
     #[test]
-    fn deposit_ultrahonk_test() {
+    fn withdraw_ultrahonk_test() {
         // TestConfig::install_tracing();
 
         // Init Ultrahonk
         // Read constraint system and keys
-        let pa = TestConfig::get_deposit_program_artifact().unwrap();
+        let pa = TestConfig::get_withdraw_program_artifact().unwrap();
         let constraint_system = Arc::new(ultrahonk::get_constraint_system_from_artifact(&pa));
         let prover_crs = TestConfig::get_prover_crs(&constraint_system).unwrap();
         let verifier_crs = TestConfig::get_verifier_crs().unwrap();
@@ -174,22 +162,15 @@ mod tests {
 
         // The actual testcase
         for _ in 0..TestConfig::TEST_RUNS {
-            // Either new key or existing key, with 50% probability each
-            let key = if rng.r#gen::<bool>() {
-                F::rand(&mut rng)
-            } else {
-                TestConfig::get_random_map_key(&plain_map, &mut rng)
-            };
-            let amount = F::from(rng.r#gen::<u64>());
+            let key = TestConfig::get_random_map_key(&plain_map, &mut rng);
             let amount_blinding = F::rand(&mut rng);
 
             // Insert (just the amount) into the plain map
-            let read_plain = plain_map.get(&key);
-            let result_amount = if let Some(v) = read_plain {
-                amount + v.amount
-            } else {
-                amount
-            };
+            let read_plain = plain_map.get(&key).unwrap();
+            let max_amount = read_plain.amount.into_bigint().0[0];
+            assert_eq!(F::from(max_amount), read_plain.amount); // Debug Assert
+            let amount = F::from(rng.gen_range(0..=max_amount));
+            let result_amount = read_plain.amount - amount;
             plain_map.insert(key, DepositValuePlain::new(result_amount, F::zero()));
 
             // Share the amount and the blinding
@@ -214,7 +195,7 @@ mod tests {
                         let mut rep3 = Rep3State::new(net0, A2BType::default()).unwrap();
 
                         let (read, proof, public_inputs) = map
-                            .deposit_with_ultrahonk_proof(
+                            .withdraw_with_ultrahonk_proof(
                                 key,
                                 amount,
                                 amount_blinding,
@@ -265,12 +246,12 @@ mod tests {
     }
 
     #[test]
-    fn deposit_groth16_test() {
+    fn withdraw_groth16_test() {
         // TestConfig::install_tracing();
 
         // Init Groth16
         // Read constraint system
-        let pa = TestConfig::get_deposit_program_artifact().unwrap();
+        let pa = TestConfig::get_withdraw_program_artifact().unwrap();
 
         // Get the R1CS proof schema
         let mut rng = rand::thread_rng();
@@ -290,22 +271,15 @@ mod tests {
 
         // The actual testcase
         for _ in 0..TestConfig::TEST_RUNS {
-            // Either new key or existing key, with 50% probability each
-            let key = if rng.r#gen::<bool>() {
-                F::rand(&mut rng)
-            } else {
-                TestConfig::get_random_map_key(&plain_map, &mut rng)
-            };
-            let amount = F::from(rng.r#gen::<u64>());
+            let key = TestConfig::get_random_map_key(&plain_map, &mut rng);
             let amount_blinding = F::rand(&mut rng);
 
             // Insert (just the amount) into the plain map
-            let read_plain = plain_map.get(&key);
-            let result_amount = if let Some(v) = read_plain {
-                amount + v.amount
-            } else {
-                amount
-            };
+            let read_plain = plain_map.get(&key).unwrap();
+            let max_amount = read_plain.amount.into_bigint().0[0];
+            assert_eq!(F::from(max_amount), read_plain.amount); // Debug Assert
+            let amount = F::from(rng.gen_range(0..=max_amount));
+            let result_amount = read_plain.amount - amount;
             plain_map.insert(key, DepositValuePlain::new(result_amount, F::zero()));
 
             // Share the amount and the blinding
@@ -329,7 +303,7 @@ mod tests {
                         let mut rep3 = Rep3State::new(net0, A2BType::default()).unwrap();
 
                         let (read, proof, public_inputs) = map
-                            .deposit_with_groth16_proof(
+                            .withdraw_with_groth16_proof(
                                 key,
                                 amount,
                                 amount_blinding,
