@@ -2,39 +2,33 @@ pub mod deposit;
 pub mod transaction;
 pub mod withdraw;
 
-#[cfg(test)]
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
 use ark_ff::PrimeField;
-#[cfg(test)]
-use co_noir::AcirFormat;
-use co_noir::{Bn254, Rep3AcvmType};
-#[cfg(test)]
+use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
 use co_ultrahonk::prelude::ProverCrs;
 use mpc_core::{
     gadgets::poseidon2::Poseidon2,
     protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State},
 };
 use mpc_net::Network;
-#[cfg(test)]
 use noirc_artifacts::program::ProgramArtifact;
 use oblivious_map::merkle_hash::MpcMerkleHasher;
-#[cfg(test)]
 use oblivious_map_proof::noir::ultrahonk;
-#[cfg(test)]
 use rand::{CryptoRng, Rng};
-#[cfg(test)]
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 pub(super) type F = ark_bn254::Fr;
 pub(super) type Curve = Bn254;
+
+const DOMAIN_SEPARATOR: u64 = 0xDEADBEEFu64;
 
 fn poseidon2_commitment_helper<const I: usize, const I2: usize, F: PrimeField, N: Network>(
     mut input: [Rep3PrimeFieldShare<F>; I2],
     net: &N,
     rep3_state: &mut Rep3State,
 ) -> eyre::Result<Vec<Vec<Rep3AcvmType<F>>>> {
-    let domain_separator = F::from(0xDEADBEEFu64);
     assert_eq!(2 * I, I2);
+    let domain_separator = F::from(DOMAIN_SEPARATOR);
     let hasher = Poseidon2::<F, 2, 5>::default();
     let mut hasher_precomp = hasher.precompute_rep3(I, net, rep3_state)?;
     for input in input.iter_mut().step_by(2) {
@@ -50,10 +44,34 @@ fn poseidon2_commitment_helper<const I: usize, const I2: usize, F: PrimeField, N
     Ok(result)
 }
 
-#[cfg(test)]
-pub(crate) struct TestConfig {}
+fn poseidon2_commitments<const I: usize, const I2: usize, F: PrimeField, N: Network>(
+    mut input: [Rep3PrimeFieldShare<F>; I2],
+    net: &N,
+    rep3_state: &mut Rep3State,
+) -> eyre::Result<Vec<Rep3PrimeFieldShare<F>>> {
+    assert_eq!(2 * I, I2);
+    let domain_separator = F::from(DOMAIN_SEPARATOR);
+    let hasher = Poseidon2::<F, 2, 5>::default();
+    let mut hasher_precomp = hasher.precompute_rep3(I, net, rep3_state)?;
+    let mut result = Vec::with_capacity(I);
+    for input in input.iter_mut().step_by(2) {
+        result.push(input.to_owned());
+        rep3::arithmetic::add_assign_public(input, domain_separator, rep3_state.id);
+    }
 
-#[cfg(test)]
+    hasher.rep3_permutation_in_place_with_precomputation_packed(
+        &mut input,
+        &mut hasher_precomp,
+        net,
+    )?;
+    for (des, src) in result.iter_mut().zip(input.iter().step_by(2)) {
+        *des += src;
+    }
+    Ok(result)
+}
+
+pub struct TestConfig {}
+
 impl TestConfig {
     const ROOT: &str = std::env!("CARGO_MANIFEST_DIR");
     const PROVER_CRS: &str = "/data/bn254_g1.dat";
@@ -62,10 +80,11 @@ impl TestConfig {
     const WITHDRAW_CIRCUIT: &str = "/data/private_withdraw.json";
     const TRANSACTION_CIRCUIT: &str = "/data/private_transaction.json";
 
+    #[cfg(test)]
     const NUM_ITEMS: usize = 100;
+    #[cfg(test)]
     const TEST_RUNS: usize = 5;
 
-    #[allow(dead_code)]
     pub fn install_tracing() {
         use tracing_subscriber::fmt::format::FmtSpan;
         use tracing_subscriber::prelude::*;
@@ -76,7 +95,7 @@ impl TestConfig {
             .with_line_number(false)
             .with_span_events(FmtSpan::CLOSE | FmtSpan::ENTER);
         let filter_layer = EnvFilter::try_from_default_env()
-            .or_else(|_| EnvFilter::try_new("info"))
+            .or_else(|_| EnvFilter::try_new("warn,private_deposit=info,deposit=info"))
             .unwrap();
 
         tracing_subscriber::registry()
@@ -130,11 +149,17 @@ impl TestConfig {
         map
     }
 
+    // Hashmap is not ordered, so we need to convert it to an ordered map first to be consistent among multiple runs
     pub fn get_random_map_key<K, V, R: Rng>(map: &PrivateDeposit<K, V>, rng: &mut R) -> K
     where
-        K: std::hash::Hash + Eq + Clone,
+        K: std::hash::Hash + Eq + Clone + Ord,
     {
-        let index = rng.r#gen_range(0..map.len());
-        map.keys().nth(index).unwrap().clone()
+        let mut ordered_map = BTreeMap::new();
+        for (k, v) in map.iter() {
+            ordered_map.insert(k, v);
+        }
+
+        let index = rng.r#gen_range(0..ordered_map.len());
+        ordered_map.keys().nth(index).unwrap().to_owned().to_owned()
     }
 }

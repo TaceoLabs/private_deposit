@@ -2,7 +2,7 @@ use ark_ff::PrimeField;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use mpc_core::protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State};
 use rand::{CryptoRng, Rng};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 pub type DepositValuePlain<F> = DepositValue<F>;
 pub type DepositValueShare<F> = DepositValue<Rep3PrimeFieldShare<F>>;
@@ -106,7 +106,7 @@ where
 
 impl<K, F: PrimeField> PrivateDeposit<K, DepositValuePlain<F>>
 where
-    K: std::hash::Hash + Eq + Clone,
+    K: std::hash::Hash + Eq + Clone + Ord,
 {
     pub fn share<R: Rng + CryptoRng>(
         &self,
@@ -117,12 +117,16 @@ where
             PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
             PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
         ];
-        for (key, values) in self.iter() {
+        let mut ordered_map = BTreeMap::new();
+        for (k, v) in self.iter() {
+            ordered_map.insert(k, v);
+        }
+        for (key, values) in ordered_map.iter() {
             let [a1, a2, a3] = rep3::share_field_element(values.amount, rng);
             let [b1, b2, b3] = rep3::share_field_element(values.blinding, rng);
-            shares[0].insert(key.clone(), DepositValue::new(a1, b1));
-            shares[1].insert(key.clone(), DepositValue::new(a2, b2));
-            shares[2].insert(key.clone(), DepositValue::new(a3, b3));
+            shares[0].insert(key.to_owned().to_owned(), DepositValue::new(a1, b1));
+            shares[1].insert(key.to_owned().to_owned(), DepositValue::new(a2, b2));
+            shares[2].insert(key.to_owned().to_owned(), DepositValue::new(a3, b3));
         }
         shares
     }

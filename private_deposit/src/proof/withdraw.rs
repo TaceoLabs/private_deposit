@@ -1,6 +1,6 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_groth16::Proof;
-use co_circom::{ConstraintMatrices, ProvingKey};
+use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
 use co_ultrahonk::prelude::{HonkProof, ProverCrs};
 use eyre::Context;
@@ -34,6 +34,31 @@ where
             Rep3AcvmType::from(amount_blinding),
             Rep3AcvmType::from(new_blinding),
         ]
+    }
+
+    pub fn withdraw_with_commitments<N: Network>(
+        &mut self,
+        key: K,
+        amount: Rep3PrimeFieldShare<F>,
+        amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
+        net0: &N,
+        rep3_state: &mut Rep3State,
+    ) -> eyre::Result<(DepositValueShare<F>, Vec<Rep3PrimeFieldShare<F>>)> {
+        let (old, new) = self.withdraw(key, amount, rep3_state)?;
+
+        let commitments = super::poseidon2_commitments::<NUM_WITHDRAW_COMMITMENTS, _, _, _>(
+            [
+                old.amount,
+                old.blinding,
+                new.amount,
+                new.blinding,
+                amount,
+                amount_blinding,
+            ],
+            net0,
+            rep3_state,
+        )?;
+        Ok((new, commitments))
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -82,18 +107,16 @@ where
     }
 
     #[expect(clippy::too_many_arguments)]
-    pub fn withdraw_with_groth16_proof<N: Network>(
+    pub fn withdraw_with_r1cs_witext<N: Network>(
         &mut self,
         key: K,
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
         proof_schema: &NoirProofScheme<F>,
-        cs: &ConstraintMatrices<F>,
-        pk: &ProvingKey<Curve>,
         net0: &N,
         net1: &N,
         rep3_state: &mut Rep3State,
-    ) -> eyre::Result<(DepositValueShare<F>, Proof<Curve>, Vec<F>)> {
+    ) -> eyre::Result<(DepositValueShare<F>, Rep3SharedWitness<F>)> {
         let (old, new) = self.withdraw(key, amount, rep3_state)?;
 
         let inputs =
@@ -117,6 +140,32 @@ where
                 .unwrap();
 
         let witness = r1cs::r1cs_witness_to_cogroth16(proof_schema, r1cs, rep3_state.id);
+
+        Ok((new, witness))
+    }
+
+    #[expect(clippy::too_many_arguments)]
+    pub fn withdraw_with_groth16_proof<N: Network>(
+        &mut self,
+        key: K,
+        amount: Rep3PrimeFieldShare<F>,
+        amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
+        proof_schema: &NoirProofScheme<F>,
+        cs: &ConstraintMatrices<F>,
+        pk: &ProvingKey<Curve>,
+        net0: &N,
+        net1: &N,
+        rep3_state: &mut Rep3State,
+    ) -> eyre::Result<(DepositValueShare<F>, Proof<Curve>, Vec<F>)> {
+        let (new, witness) = self.withdraw_with_r1cs_witext(
+            key,
+            amount,
+            amount_blinding,
+            proof_schema,
+            net0,
+            net1,
+            rep3_state,
+        )?;
 
         let (proof, public_inputs) =
             r1cs::prove(cs, pk, witness, net0, net1).context("while generating Groth16 proof")?;

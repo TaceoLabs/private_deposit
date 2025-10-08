@@ -1,7 +1,7 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_ff::Zero;
 use ark_groth16::Proof;
-use co_circom::{ConstraintMatrices, ProvingKey};
+use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
 use co_ultrahonk::prelude::{HonkProof, ProverCrs};
 use eyre::Context;
@@ -51,6 +51,48 @@ where
         inputs.push(Rep3AcvmType::from(sender_new_blinding));
         inputs.push(Rep3AcvmType::from(receiver_new_blinding));
         (inputs, reciever_old_amount, reciever_old_blinding)
+    }
+
+    #[expect(clippy::type_complexity)]
+    pub fn transaction_with_commitments<N: Network>(
+        &mut self,
+        sender_key: K,
+        receiver_key: K,
+        amount: Rep3PrimeFieldShare<F>,
+        amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
+        net0: &N,
+        rep3_state: &mut Rep3State,
+    ) -> eyre::Result<(
+        DepositValueShare<F>,
+        DepositValueShare<F>,
+        Vec<Rep3PrimeFieldShare<F>>,
+    )> {
+        let (sender_old, sender_new, receiver_old, receiver_new) =
+            self.transaction(sender_key, receiver_key, amount, rep3_state)?;
+
+        let (reciever_old_amount, reciever_old_blinding) = if let Some(old) = receiver_old {
+            (old.amount, old.blinding)
+        } else {
+            (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
+        };
+
+        let commitments = super::poseidon2_commitments::<NUM_TRANSACTION_COMMITMENTS, _, _, _>(
+            [
+                sender_old.amount,
+                sender_old.blinding,
+                sender_new.amount,
+                sender_new.blinding,
+                reciever_old_amount,
+                reciever_old_blinding,
+                receiver_new.amount,
+                receiver_new.blinding,
+                amount,
+                amount_blinding,
+            ],
+            net0,
+            rep3_state,
+        )?;
+        Ok((sender_new, receiver_new, commitments))
     }
 
     #[expect(clippy::too_many_arguments, clippy::type_complexity)]
@@ -115,24 +157,21 @@ where
         Ok((sender_new, receiver_new, proof, public_inputs))
     }
 
-    #[expect(clippy::too_many_arguments, clippy::type_complexity)]
-    pub fn transaction_with_groth16_proof<N: Network>(
+    #[expect(clippy::too_many_arguments)]
+    pub fn transaction_with_r1cs_witext<N: Network>(
         &mut self,
         sender_key: K,
         receiver_key: K,
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
         proof_schema: &NoirProofScheme<F>,
-        cs: &ConstraintMatrices<F>,
-        pk: &ProvingKey<Curve>,
         net0: &N,
         net1: &N,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<(
         DepositValueShare<F>,
         DepositValueShare<F>,
-        Proof<Curve>,
-        Vec<F>,
+        Rep3SharedWitness<F>,
     )> {
         let (sender_old, sender_new, receiver_old, receiver_new) =
             self.transaction(sender_key, receiver_key, amount, rep3_state)?;
@@ -168,6 +207,39 @@ where
                 .unwrap();
 
         let witness = r1cs::r1cs_witness_to_cogroth16(proof_schema, r1cs, rep3_state.id);
+
+        Ok((sender_new, receiver_new, witness))
+    }
+
+    #[expect(clippy::too_many_arguments, clippy::type_complexity)]
+    pub fn transaction_with_groth16_proof<N: Network>(
+        &mut self,
+        sender_key: K,
+        receiver_key: K,
+        amount: Rep3PrimeFieldShare<F>,
+        amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
+        proof_schema: &NoirProofScheme<F>,
+        cs: &ConstraintMatrices<F>,
+        pk: &ProvingKey<Curve>,
+        net0: &N,
+        net1: &N,
+        rep3_state: &mut Rep3State,
+    ) -> eyre::Result<(
+        DepositValueShare<F>,
+        DepositValueShare<F>,
+        Proof<Curve>,
+        Vec<F>,
+    )> {
+        let (sender_new, receiver_new, witness) = self.transaction_with_r1cs_witext(
+            sender_key,
+            receiver_key,
+            amount,
+            amount_blinding,
+            proof_schema,
+            net0,
+            net1,
+            rep3_state,
+        )?;
 
         let (proof, public_inputs) =
             r1cs::prove(cs, pk, witness, net0, net1).context("while generating Groth16 proof")?;
