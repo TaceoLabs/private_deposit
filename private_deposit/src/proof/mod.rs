@@ -5,6 +5,7 @@ pub mod withdraw;
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
 use ark_ff::PrimeField;
 use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
+use co_noir_to_r1cs::{noir::ultrahonk, trace::MpcTraceHasher};
 use co_ultrahonk::prelude::ProverCrs;
 use mpc_core::{
     gadgets::poseidon2::Poseidon2,
@@ -12,8 +13,6 @@ use mpc_core::{
 };
 use mpc_net::Network;
 use noirc_artifacts::program::ProgramArtifact;
-use oblivious_map::merkle_hash::MpcMerkleHasher;
-use oblivious_map_proof::noir::ultrahonk;
 use rand::{CryptoRng, Rng};
 use std::{collections::BTreeMap, sync::Arc};
 

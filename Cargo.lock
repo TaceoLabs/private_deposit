@@ -1111,6 +1111,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "co-noir-to-r1cs"
+version = "0.1.0"
+source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=ed155f17fc29d7b731a18c5668425f00836f9306#ed155f17fc29d7b731a18c5668425f00836f9306"
+dependencies = [
+ "acir",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff",
+ "ark-groth16",
+ "ark-poly",
+ "ark-relations",
+ "co-acvm",
+ "co-circom",
+ "co-groth16",
+ "co-noir",
+ "co-ultrahonk",
+ "eyre",
+ "itertools 0.14.0",
+ "mpc-core",
+ "mpc-net",
+ "noirc_artifacts",
+ "num-bigint 0.4.6",
+ "rand",
+ "serde",
+ "tracing",
+]
+
+[[package]]
 name = "co-plonk"
 version = "0.6.1"
 source = "git+https://github.com/TaceoLabs/co-snarks?branch=rw%2Fr1cs#526ededc170793dfdcc0843697cfc2e887962157"
@@ -1378,14 +1406,6 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
-
-[[package]]
-name = "crrl"
-version = "0.9.0"
-source = "git+https://github.com/pornin/crrl.git?rev=4cc7cbbe8796ee8d459b815d81318603279879e4#4cc7cbbe8796ee8d459b815d81318603279879e4"
-dependencies = [
- "rand_core",
-]
 
 [[package]]
 name = "crunchy"
@@ -2846,87 +2866,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oblivious_map"
-version = "0.1.0"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "bincode",
- "bitvec",
- "clap",
- "co-noir",
- "eyre",
- "figment",
- "itertools 0.14.0",
- "mpc-core",
- "mpc-net",
- "oblivious_map_linear_scan",
- "oram",
- "rand",
- "rand_chacha",
- "rayon",
- "rustls",
- "serde",
- "tracing",
- "tracing-subscriber 0.3.20",
-]
-
-[[package]]
-name = "oblivious_map_linear_scan"
-version = "0.1.0"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "ark-serialize",
- "clap",
- "eyre",
- "figment",
- "itertools 0.14.0",
- "mpc-core",
- "mpc-net",
- "num-bigint 0.4.6",
- "rand",
- "rand_chacha",
- "rustls",
- "serde",
- "tracing",
- "tracing-subscriber 0.3.20",
-]
-
-[[package]]
-name = "oblivious_map_proof"
-version = "0.1.0"
-dependencies = [
- "acir",
- "ark-bn254",
- "ark-ec",
- "ark-ff",
- "ark-groth16",
- "ark-poly",
- "ark-relations",
- "clap",
- "co-acvm",
- "co-circom",
- "co-groth16",
- "co-noir",
- "co-ultrahonk",
- "eyre",
- "figment",
- "itertools 0.14.0",
- "mpc-core",
- "mpc-net",
- "noirc_artifacts",
- "num-bigint 0.4.6",
- "oblivious_map",
- "rand",
- "rand_chacha",
- "rustls",
- "serde",
- "tracing",
- "tracing-subscriber 0.3.20",
-]
-
-[[package]]
 name = "ocelot"
 version = "0.6.0"
 source = "git+https://github.com/GaloisInc/swanky?rev=5ff648457218b74da9d8323b7ca47166ff5be4b3#5ff648457218b74da9d8323b7ca47166ff5be4b3"
@@ -2955,35 +2894,6 @@ name = "once_cell_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
-
-[[package]]
-name = "oram"
-version = "0.1.0"
-dependencies = [
- "aes",
- "ark-bn254",
- "ark-ff",
- "ark-serialize",
- "bincode",
- "bitvec",
- "clap",
- "crrl",
- "eyre",
- "figment",
- "itertools 0.14.0",
- "mpc-core",
- "mpc-net",
- "num-bigint 0.4.6",
- "oblivious_map_linear_scan",
- "rand",
- "rand_chacha",
- "rayon",
- "rustls",
- "serde",
- "tracing",
- "tracing-subscriber 0.3.20",
- "wide",
-]
 
 [[package]]
 name = "owo-colors"
@@ -3240,6 +3150,7 @@ dependencies = [
  "clap",
  "co-circom",
  "co-noir",
+ "co-noir-to-r1cs",
  "co-ultrahonk",
  "eyre",
  "figment",
@@ -3247,8 +3158,6 @@ dependencies = [
  "mpc-core",
  "mpc-net",
  "noirc_artifacts",
- "oblivious_map",
- "oblivious_map_proof",
  "rand",
  "rand_chacha",
  "rustls",
@@ -3753,15 +3662,6 @@ checksum = "0909ab4b77511df24201cd66541d6a028887c77ecc065f277c68a12a663274ef"
 dependencies = [
  "safe-proc-macro2",
  "safe-regex-compiler",
-]
-
-[[package]]
-name = "safe_arch"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b02de82ddbe1b636e6170c21be622223aea188ef2e139be0a5b219ec215323"
-dependencies = [
- "bytemuck",
 ]
 
 [[package]]
@@ -4827,16 +4727,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e8983c3ab33d6fb807cfcdad2491c4ea8cbc8ed839181c7dfd9c67c83e261b2"
 dependencies = [
  "rustls-pki-types",
-]
-
-[[package]]
-name = "wide"
-version = "0.7.33"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ce5da8ecb62bcd8ec8b7ea19f69a51275e91299be594ea5cc6ef7819e16cd03"
-dependencies = [
- "bytemuck",
- "safe_arch",
 ]
 
 [[package]]

@@ -2,6 +2,7 @@ use ark_ff::{PrimeField, UniformRand};
 use clap::Parser;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::Bn254;
+use co_noir_to_r1cs::{noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme};
 use eyre::{Context, eyre};
 use figment::{
     Figment,
@@ -12,7 +13,6 @@ use mpc_net::{
     Network,
     tcp::{NetworkConfig, TcpNetwork},
 };
-use oblivious_map_proof::{noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme};
 use private_deposit::{
     data_structure::{DepositValuePlain, PrivateDeposit},
     proof::TestConfig,

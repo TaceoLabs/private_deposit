@@ -21,6 +21,7 @@ ark-serialize = { version = "^0.5.0", features = ["derive", "std"] }
 clap = { version = "4.4.8", features = ["derive"] }
 co-circom = { version = "0.9.0", git = "https://github.com/TaceoLabs/co-snarks", branch = "rw/r1cs" }
 co-noir = { version = "0.6.0", git = "https://github.com/TaceoLabs/co-snarks", branch = "rw/r1cs" }
+co-noir-to-r1cs = { version = "0.1.0", git = "https://github.com/TaceoLabs/CoNoir-to-R1CS", rev = "ed155f17fc29d7b731a18c5668425f00836f9306" }
 co-ultrahonk = { version = "0.5.0", git = "https://github.com/TaceoLabs/co-snarks", branch = "rw/r1cs" }
 eyre = "0.6.12"
 figment = { version = "0.10.19", features = ["toml", "env"] }
@@ -33,8 +34,6 @@ noirc-artifacts = { version = "1.0.0-beta.6", git = "https://github.com/noir-lan
 rand = "0.8.5"
 rand_chacha = "0.3"
 rustls = "0.23.15"
-oblivious_map = { path = "../oblivious_map/oblivious_map" } # rw/r1cs branch TODO this is not clean
-oblivious_map_proof = { path = "../oblivious_map/oblivious_map_proof" } # rw/r1cs branch  TODO this is not clean
 serde = { version = "1.0.193", features = ["derive", "rc"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
