@@ -120,10 +120,10 @@ impl TestConfig {
 
     pub fn get_prover_crs(
         constraint_system: &AcirFormat<ark_bn254::Fr>,
-    ) -> eyre::Result<Arc<ProverCrs<Bn254>>> {
+    ) -> eyre::Result<Arc<ProverCrs<ark_bn254::G1Projective>>> {
         let prover_crs_path = format!("{}{}", Self::ROOT, Self::PROVER_CRS);
         let cirucit_size = ultrahonk::get_circuit_size(constraint_system).unwrap();
-        ultrahonk::get_prver_crs(prover_crs_path, cirucit_size)
+        ultrahonk::get_prover_crs(prover_crs_path, cirucit_size)
     }
 
     pub fn get_verifier_crs() -> eyre::Result<ark_bn254::G2Affine> {

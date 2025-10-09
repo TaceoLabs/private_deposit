@@ -1,12 +1,12 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_groth16::Proof;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
+use co_noir::{AcirFormat, HonkProof, Rep3AcvmType};
 use co_noir_to_r1cs::{
     noir::{r1cs, ultrahonk},
     r1cs::noir_proof_schema::NoirProofScheme,
 };
-use co_ultrahonk::prelude::{HonkProof, ProverCrs};
+use co_ultrahonk::prelude::ProverCrs;
 use eyre::Context;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
@@ -69,7 +69,7 @@ where
         amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
         program_artifact: ProgramArtifact,
         constraint_system: &AcirFormat<F>,
-        prover_crs: &ProverCrs<Bn254>,
+        prover_crs: &ProverCrs<ark_bn254::G1Projective>,
         net0: &N,
         net1: &N,
         rep3_state: &mut Rep3State,
@@ -79,7 +79,8 @@ where
         let inputs =
             Self::get_withdraw_input(old.to_owned(), amount, amount_blinding, new.blinding);
 
-        // let witness = ultrahonk::conoir_witness_extension(inputs, program_artifact, net0, net1)?;
+        // let witness_stack =
+        //     ultrahonk::conoir_witness_extension(inputs, program_artifact, net0, net1)?;
         let traces = super::poseidon2_commitment_helper::<NUM_WITHDRAW_COMMITMENTS, _, _, _>(
             [
                 amount,
@@ -92,13 +93,14 @@ where
             net0,
             rep3_state,
         )?;
-        let witness = ultrahonk::r1cs_witness_extension_with_helper(
+        let witness_stack = ultrahonk::r1cs_witness_extension_with_helper(
             inputs,
             traces,
             program_artifact,
             net0,
             net1,
         )?;
+        let witness = co_noir::witness_stack_to_vec_rep3(witness_stack);
 
         let (proof, public_inputs) =
             ultrahonk::prove(constraint_system, witness, prover_crs, net0, net1)?;
