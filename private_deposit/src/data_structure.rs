@@ -117,10 +117,7 @@ where
             PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
             PrivateDeposit::<K, DepositValueShare<F>>::with_capacity(self.len()),
         ];
-        let mut ordered_map = BTreeMap::new();
-        for (k, v) in self.iter() {
-            ordered_map.insert(k, v);
-        }
+        let ordered_map = BTreeMap::from_iter(self.iter());
         for (key, values) in ordered_map.iter() {
             let [a1, a2, a3] = rep3::share_field_element(values.amount, rng);
             let [b1, b2, b3] = rep3::share_field_element(values.blinding, rng);

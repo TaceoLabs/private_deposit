@@ -26,15 +26,15 @@ use super::F;
 // From the Noir circuits
 const NUM_AMOUNT_BITS: usize = 64;
 const NUM_WITHDRAW_NEW_BITS: usize = 100;
-const NUM_TRANSACTIONS: usize = 96;
+pub(super) const NUM_TRANSACTIONS: usize = 96;
 const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
 
 #[derive(Clone, Debug, Default)]
 pub struct TransactionInput<K, F> {
-    sender_key: K,
-    receiver_key: K,
-    amount: F,
-    amount_blinding: F,
+    pub sender_key: K,
+    pub receiver_key: K,
+    pub amount: F,
+    pub amount_blinding: F,
 }
 
 impl<K, F: PrimeField> TransactionInput<K, F> {
@@ -154,6 +154,79 @@ where
             net0,
             rep3_state,
         )?;
+        Ok((sender_new, receiver_new, commitments))
+    }
+
+    #[expect(clippy::type_complexity)]
+    pub fn transaction_multithread_with_commitments<N: Network>(
+        &mut self,
+        inputs: &[TransactionInput<K, Rep3PrimeFieldShare<F>>; NUM_TRANSACTIONS],
+        nets: &[N; NUM_TRANSACTIONS],
+        rep3_states: &mut [Rep3State; NUM_TRANSACTIONS],
+    ) -> eyre::Result<(
+        Vec<DepositValueShare<F>>,
+        Vec<DepositValueShare<F>>,
+        Vec<Rep3PrimeFieldShare<F>>,
+    )> {
+        let mut sender_new = Vec::with_capacity(NUM_TRANSACTIONS);
+        let mut receiver_new = Vec::with_capacity(NUM_TRANSACTIONS);
+        let mut commitments = Vec::with_capacity(NUM_COMMITMENTS);
+
+        let result = thread::scope(|scope| {
+            let mut handles = Vec::with_capacity(3);
+            for (input, net, rep3_state) in
+                izip!(inputs.iter(), nets.iter(), rep3_states.iter_mut())
+            {
+                let (sender_old, sender_new, receiver_old, receiver_new) = self.transaction(
+                    input.sender_key.to_owned(),
+                    input.receiver_key.to_owned(),
+                    input.amount,
+                    rep3_state,
+                )?;
+
+                let handle = scope.spawn(move || {
+                    let (reciever_old_amount, reciever_old_blinding) =
+                        if let Some(old) = receiver_old {
+                            (old.amount, old.blinding)
+                        } else {
+                            (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
+                        };
+
+                    let commitments =
+                        super::poseidon2_commitments::<NUM_TRANSACTION_COMMITMENTS, _, _, _>(
+                            [
+                                sender_old.amount,
+                                sender_old.blinding,
+                                sender_new.amount,
+                                sender_new.blinding,
+                                reciever_old_amount,
+                                reciever_old_blinding,
+                                receiver_new.amount,
+                                receiver_new.blinding,
+                                input.amount,
+                                input.amount_blinding,
+                            ],
+                            net,
+                            rep3_state,
+                        )?;
+
+                    Result::<_, eyre::Report>::Ok((sender_new, receiver_new, commitments))
+                });
+                handles.push(handle);
+            }
+            for handle in handles {
+                let (sender_new_, receiver_new_, commitments_) =
+                    handle.join().map_err(|_| {
+                        eyre::eyre!("A thread panicked while processing a transaction")
+                    })??;
+                sender_new.push(sender_new_);
+                receiver_new.push(receiver_new_);
+                commitments.extend(commitments_);
+            }
+            Result::<_, eyre::Report>::Ok(())
+        });
+        result?;
+
         Ok((sender_new, receiver_new, commitments))
     }
 

@@ -17,6 +17,8 @@ use noirc_artifacts::program::ProgramArtifact;
 use rand::{CryptoRng, Rng};
 use std::{collections::BTreeMap, sync::Arc};
 
+pub const NUM_BATCHED_TRANSACTIONS: usize = transaction_batched::NUM_TRANSACTIONS;
+
 pub(super) type F = ark_bn254::Fr;
 pub(super) type Curve = Bn254;
 
@@ -160,10 +162,7 @@ impl TestConfig {
     where
         K: std::hash::Hash + Eq + Clone + Ord,
     {
-        let mut ordered_map = BTreeMap::new();
-        for (k, v) in map.iter() {
-            ordered_map.insert(k, v);
-        }
+        let ordered_map = BTreeMap::from_iter(map.iter());
 
         let index = rng.r#gen_range(0..ordered_map.len());
         ordered_map.keys().nth(index).unwrap().to_owned().to_owned()
