@@ -1,5 +1,6 @@
 pub mod deposit;
 pub mod transaction;
+pub mod transaction_batched;
 pub mod withdraw;
 
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
@@ -78,9 +79,10 @@ impl TestConfig {
     const DEPOSIT_CIRCUIT: &str = "/data/private_deposit.json";
     const WITHDRAW_CIRCUIT: &str = "/data/private_withdraw.json";
     const TRANSACTION_CIRCUIT: &str = "/data/private_transaction.json";
+    const TRANSACTION_BATCHED_CIRCUIT: &str = "/data/private_transaction_batched.json";
 
     #[cfg(test)]
-    const NUM_ITEMS: usize = 100;
+    const NUM_ITEMS: usize = 1000;
     #[cfg(test)]
     const TEST_RUNS: usize = 5;
 
@@ -118,6 +120,11 @@ impl TestConfig {
         ultrahonk::get_program_artifact(cs_path)
     }
 
+    pub fn get_transaction_batched_program_artifact() -> eyre::Result<ProgramArtifact> {
+        let cs_path = format!("{}{}", Self::ROOT, Self::TRANSACTION_BATCHED_CIRCUIT);
+        ultrahonk::get_program_artifact(cs_path)
+    }
+
     pub fn get_prover_crs(
         constraint_system: &AcirFormat<ark_bn254::Fr>,
     ) -> eyre::Result<Arc<ProverCrs<ark_bn254::G1Projective>>> {
@@ -139,7 +146,7 @@ impl TestConfig {
             PrivateDeposit::with_capacity(num_items);
         for _ in 0..num_items {
             let key = F::rand(rng);
-            let amount = F::from(rng.r#gen::<u64>());
+            let amount = F::from(rng.gen_range(0..u32::MAX)); // We don't use the full u64 range to avoid overflows in the testcases
             let blinding = F::rand(rng);
             // We don't check whether the key is already in the map since the probability is negligible
             map.insert(key, DepositValuePlain::new(amount, blinding));

@@ -1,0 +1,8 @@
+[package]
+name = "private_transaction_batched"
+type = "bin"
+authors = ["TACEO"]
+compiler_version = ">=1.0.0"
+
+[dependencies]
+private_deposit_common = { path = "../private_deposit_common" }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CIRCUITS=("private_deposit" "private_withdraw" "private_transaction")
+CIRCUITS=("private_deposit" "private_withdraw" "private_transaction" "private_transaction_batched")
 
 for CIRCUIT in "${CIRCUITS[@]}"; do
   echo "Creating circuit: $CIRCUIT"

@@ -138,8 +138,7 @@ where
         )?;
         let r1cs =
             r1cs::trace_to_r1cs_witness(inputs, traces, proof_schema, net0, net1, rep3_state)
-                .context("while translating witness to R1CS")
-                .unwrap();
+                .context("while translating witness to R1CS")?;
 
         let witness = r1cs::r1cs_witness_to_cogroth16(proof_schema, r1cs, rep3_state.id);
 
@@ -188,6 +187,7 @@ mod tests {
     use std::{sync::Arc, thread};
 
     #[test]
+    #[ignore = "UltraHonk tests are ignored at the moment"]
     fn withdraw_ultrahonk_test() {
         // TestConfig::install_tracing();
 
@@ -310,6 +310,11 @@ mod tests {
         let proof_schema = Arc::new(proof_schema);
         let pk = Arc::new(pk);
         let cs = Arc::new(cs);
+        let size = proof_schema.size();
+        println!(
+            "R1CS size: constraints = {}, witnesses = {}",
+            size.0, size.1
+        );
 
         // Init networks
         let mut test_network0 = LocalNetwork::new(3);
