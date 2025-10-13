@@ -15,10 +15,7 @@ use co_noir_to_r1cs::{
 use co_ultrahonk::prelude::ProverCrs;
 use eyre::Context;
 use itertools::izip;
-use mpc_core::protocols::{
-    rep3::{self, Rep3PrimeFieldShare, Rep3State},
-    rep3_ring::{self, Rep3RingShare, ring::bit::Bit},
-};
+use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
 use noirc_artifacts::program::ProgramArtifact;
 use rand::{CryptoRng, Rng};
@@ -27,8 +24,6 @@ use super::Curve;
 use super::F;
 
 // From the Noir circuits
-const NUM_AMOUNT_BITS: usize = 64;
-const NUM_WITHDRAW_NEW_BITS: usize = 100;
 pub(super) const NUM_TRANSACTIONS: usize = 96;
 const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
 
@@ -411,65 +406,6 @@ where
         Ok((sender_new, receiver_new, proof, public_inputs))
     }
 
-    #[expect(clippy::assertions_on_constants, clippy::type_complexity)]
-    fn compose_decompose<N: Network>(
-        amount: Rep3PrimeFieldShare<F>,
-        sender_new: Rep3PrimeFieldShare<F>,
-        net0: &N,
-        net1: &N,
-        rep3_state: &mut Rep3State,
-    ) -> eyre::Result<(Vec<Rep3PrimeFieldShare<F>>, Vec<Rep3PrimeFieldShare<F>>)> {
-        // let decomp_amount =
-        //     rep3::yao::decompose_arithmetic(amount, net0, rep3_state, NUM_AMOUNT_BITS, 1)?;
-        // let decomp_sender = rep3::yao::decompose_arithmetic(
-        //     sender_new,
-        //     net1,
-        //     rep3_state,
-        //     NUM_WITHDRAW_NEW_BITS,
-        //     1,
-        // )?;
-
-        let a2b_amount = rep3::conversion::a2y2b(amount, net0, rep3_state)?;
-        let a2b_sender = rep3::conversion::a2y2b(sender_new, net1, rep3_state)?;
-
-        let mut to_compose = Vec::with_capacity(NUM_AMOUNT_BITS + NUM_WITHDRAW_NEW_BITS);
-        assert!(NUM_AMOUNT_BITS <= 64);
-        assert!(NUM_WITHDRAW_NEW_BITS <= 128);
-        assert!(NUM_WITHDRAW_NEW_BITS > 64);
-        let mut a2b_amount_a = a2b_amount.a.to_u64_digits()[0];
-        let mut a2b_amount_b = a2b_amount.b.to_u64_digits()[0];
-        let a2b_sender_a = a2b_sender.a.to_u64_digits();
-        let a2b_sender_b = a2b_sender.b.to_u64_digits();
-        let mut a2b_sender_a = ((a2b_sender_a[1] as u128) << 64) | a2b_sender_a[0] as u128;
-        let mut a2b_sender_b = ((a2b_sender_b[1] as u128) << 64) | a2b_sender_b[0] as u128;
-        for _ in 0..NUM_AMOUNT_BITS {
-            let bit = Rep3RingShare::new(
-                Bit::new((a2b_amount_a & 1) == 1),
-                Bit::new((a2b_amount_b & 1) == 1),
-            );
-            to_compose.push(bit);
-            a2b_amount_a >>= 1;
-            a2b_amount_b >>= 1;
-        }
-        for _ in 0..NUM_WITHDRAW_NEW_BITS {
-            let bit = Rep3RingShare::new(
-                Bit::new((a2b_sender_a & 1) == 1),
-                Bit::new((a2b_sender_b & 1) == 1),
-            );
-            to_compose.push(bit);
-            a2b_sender_a >>= 1;
-            a2b_sender_b >>= 1;
-        }
-        let mut composed = rep3_ring::conversion::bit_inject_from_bits_to_field_many(
-            &to_compose,
-            net0,
-            rep3_state,
-        )?;
-
-        let decomp_sender = composed.split_off(NUM_AMOUNT_BITS);
-        Ok((composed, decomp_sender))
-    }
-
     #[expect(clippy::type_complexity)]
     pub fn transaction_multithread_with_r1cs_witext<N: Network>(
         &mut self,
@@ -533,7 +469,7 @@ where
                         )?;
 
                     // The bit decompositions
-                    let (decomp_amount, decomp_sender) = Self::compose_decompose(
+                    let (decomp_amount, decomp_sender) = super::decompose_compose_for_transaction(
                         input.amount,
                         sender_new.amount,
                         &nets[0],

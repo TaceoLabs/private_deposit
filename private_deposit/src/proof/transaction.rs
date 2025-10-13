@@ -203,9 +203,27 @@ where
             net0,
             rep3_state,
         )?;
-        let r1cs =
-            r1cs::trace_to_r1cs_witness(inputs, traces, proof_schema, net0, net1, rep3_state)
-                .context("while translating witness to R1CS")?;
+
+        // The bit decompositions
+        let (mut decomp_amount, decomp_sender) = super::decompose_compose_for_transaction(
+            amount,
+            sender_new.amount,
+            net0,
+            net1,
+            rep3_state,
+        )?;
+        decomp_amount.extend(decomp_sender);
+
+        let r1cs = r1cs::trace_to_r1cs_witness_with_bitdecomp_witness(
+            inputs,
+            traces,
+            decomp_amount,
+            proof_schema,
+            net0,
+            net1,
+            rep3_state,
+        )
+        .context("while translating witness to R1CS")?;
 
         let witness = r1cs::r1cs_witness_to_cogroth16(proof_schema, r1cs, rep3_state.id);
 
