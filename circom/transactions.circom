@@ -137,45 +137,37 @@ template Transaction() {
     receiver_new_c <== deposit.new_c;
 }
 
-bus TransactionInput {
-    signal sender_old_balance;
-    signal sender_old_r;
-    signal receiver_old_balance;
-    signal receiver_old_r;
-    signal amount;
-    signal amount_r;
-    signal sender_new_r;
-    signal receiver_new_r;
-}
-
-bus TransactionOutput {
-    signal sender_old_commitment;
-    signal sender_new_commitment;
-    signal receiver_old_commitment;
-    signal receiver_new_commitment;
-    signal amount_commitment;
-}
-
 template TransactionBatched(N) {
-    input TransactionInput() in[N];
-    output TransactionOutput() out[N];
+    signal input sender_old_balance[N];
+    signal input sender_old_r[N];
+    signal input receiver_old_balance[N];
+    signal input receiver_old_r[N];
+    signal input amount[N];
+    signal input amount_r[N];
+    signal input sender_new_r[N];
+    signal input receiver_new_r[N];
+    signal output sender_old_commitment[N];
+    signal output sender_new_commitment[N];
+    signal output receiver_old_commitment[N];
+    signal output receiver_new_commitment[N];
+    signal output amount_commitment[N];
 
     component transactions[N];
     for (var i=0; i<N; i++) {
         transactions[i] = Transaction();
-        transactions[i].sender_old_balance <== in[i].sender_old_balance;
-        transactions[i].sender_old_r <== in[i].sender_old_r;
-        transactions[i].receiver_old_balance <== in[i].receiver_old_balance;
-        transactions[i].receiver_old_r <== in[i].receiver_old_r;
-        transactions[i].amount <== in[i].amount;
-        transactions[i].amount_r <== in[i].amount_r;
-        transactions[i].sender_new_r <== in[i].sender_new_r;
-        transactions[i].receiver_new_r <== in[i].receiver_new_r;
+        transactions[i].sender_old_balance <== sender_old_balance[i];
+        transactions[i].sender_old_r <== sender_old_r[i];
+        transactions[i].receiver_old_balance <== receiver_old_balance[i];
+        transactions[i].receiver_old_r <== receiver_old_r[i];
+        transactions[i].amount <== amount[i];
+        transactions[i].amount_r <== amount_r[i];
+        transactions[i].sender_new_r <== sender_new_r[i];
+        transactions[i].receiver_new_r <== receiver_new_r[i];
 
-        out[i].sender_old_commitment <== transactions[i].sender_old_c;
-        out[i].sender_new_commitment <== transactions[i].sender_new_c;
-        out[i].receiver_old_commitment <== transactions[i].receiver_old_c;
-        out[i].receiver_new_commitment <== transactions[i].receiver_new_c;
-        out[i].amount_commitment <== transactions[i].amount_c;
+        sender_old_commitment[i] <== transactions[i].sender_old_c;
+        sender_new_commitment[i] <== transactions[i].sender_new_c;
+        receiver_old_commitment[i] <== transactions[i].receiver_old_c;
+        receiver_new_commitment[i] <== transactions[i].receiver_new_c;
+        amount_commitment[i] <== transactions[i].amount_c;
     }
 }

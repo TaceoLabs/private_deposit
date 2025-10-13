@@ -19,9 +19,10 @@ ark-ff = "^0.5.0"
 ark-groth16 = "0.5.0"
 ark-serialize = { version = "^0.5.0", features = ["derive", "std"] }
 clap = { version = "4.4.8", features = ["derive"] }
+circom-mpc-vm = { version = "0.8.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "b8d299289f70c9b0371fa3639ccd133532e74974" }
 co-circom = { version = "0.9.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "b8d299289f70c9b0371fa3639ccd133532e74974" }
 co-noir = { version = "0.6.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "b8d299289f70c9b0371fa3639ccd133532e74974" }
-co-noir-to-r1cs = { version = "0.1.0", git = "https://github.com/TaceoLabs/CoNoir-to-R1CS", rev = "83eba5268b25bf2976d486edddf4a12eedfba81d" }
+co-noir-to-r1cs = { version = "0.1.0", git = "https://github.com/TaceoLabs/CoNoir-to-R1CS", rev = "5ec284930315df59f810c1f0432592fa0aabaa40" }
 co-ultrahonk = { version = "0.5.0", git = "https://github.com/TaceoLabs/co-snarks", rev = "b8d299289f70c9b0371fa3639ccd133532e74974" }
 eyre = "0.6.12"
 figment = { version = "0.10.19", features = ["toml", "env"] }

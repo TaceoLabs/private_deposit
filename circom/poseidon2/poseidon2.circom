@@ -67,7 +67,7 @@ template ExternalMatMulT(t) {
     } else {
         var amount_mds = t / 4;
         component mds[amount_mds];
-    
+
         for (var i = 0;i<amount_mds;i++) {
             var offset = 4 * i;
             mds[i] = ExternalMatMul4();
@@ -153,8 +153,9 @@ template Sbox(t) {
     }
 }
 
-template FullRound(t, RC) {
+template FullRound(t) {
     signal input in[t];
+    signal input RC[t];
     signal output out[t];
 
     // add full round constants
@@ -169,8 +170,9 @@ template FullRound(t, RC) {
     out <== ExternalMatMulT(t)(sbox);
 }
 
-template PartialRound(t, RC) {
+template PartialRound(t) {
     signal input in[t];
+    signal input RC;
     signal output out[t];
 
     // add rc to first element
@@ -188,12 +190,12 @@ template PartialRound(t, RC) {
     out <== internal_mm.out;
 }
 
-template Poseidon2(t) {  
+template Poseidon2(t) {
     // sanity check that we only have valid state sizes
     assert(t == 2 || t == 3 || t == 4 || t == 8 || t == 12 || t == 16);
 
-    signal input in[t];  
-    signal output out[t];  
+    signal input in[t];
+    signal output out[t];
 
     // load amount partial rounds
     var partial_rounds = amount_partial_rounds(t);
@@ -210,17 +212,17 @@ template Poseidon2(t) {
 
     // First 4 full rounds
     for (var i = 0;i<4;i++) {
-        state[i+1] <== FullRound(t, rc_full1[i])(state[i]);
+        state[i+1] <== FullRound(t)(state[i], rc_full1[i]);
     }
 
     // Partial Rounds
     for (var i = 0;i<partial_rounds;i++) {
-        state[i+5] <== PartialRound(t,rc_partial[i])(state[i+4]);
+        state[i+5] <== PartialRound(t)(state[i+4], rc_partial[i]);
     }
 
     // Second 4 full rounds
     for (var i = 0;i<4;i++) {
-        state[i+5+partial_rounds] <== FullRound(t, rc_full2[i])(state[i+4+partial_rounds]);
+        state[i+5+partial_rounds] <== FullRound(t)(state[i+4+partial_rounds], rc_full2[i]);
     }
 
     out <== state[8+partial_rounds];

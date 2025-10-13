@@ -16,6 +16,7 @@ ark-ff.workspace = true
 ark-groth16.workspace = true
 ark-serialize.workspace = true
 clap.workspace = true
+circom-mpc-vm.workspace = true
 co-circom.workspace = true
 co-noir.workspace = true
 co-noir-to-r1cs.workspace = true

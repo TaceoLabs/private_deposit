@@ -1,3 +1,4 @@
+pub mod circom;
 pub mod deposit;
 pub mod transaction;
 pub mod transaction_batched;

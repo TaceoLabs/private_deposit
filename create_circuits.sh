@@ -10,3 +10,12 @@ for CIRCUIT in "${CIRCUITS[@]}"; do
   cp target/$CIRCUIT.json ../../private_deposit/data/${CIRCUIT}.json
   cd ../..
 done
+
+CIRCOM_CIRCUITS=("deposit" "withdraw" "transaction" "transaction_batched")
+
+cd circom/main
+for CIRCUIT in "${CIRCOM_CIRCUITS[@]}"; do
+    rm -rf ${CIRCUIT}.r1cs
+    circom -l .. --O2 --r1cs $CIRCUIT.circom
+done
+cd ../..
