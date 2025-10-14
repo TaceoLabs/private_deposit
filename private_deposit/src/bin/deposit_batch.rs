@@ -1,8 +1,10 @@
 use ark_ff::{PrimeField, UniformRand};
 use clap::Parser;
-use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
+use co_circom::{CoCircomCompilerParsed, ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::Bn254;
-use co_noir_to_r1cs::{noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme};
+use co_noir_to_r1cs::{
+    circom::proof_schema::CircomProofSchema, noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme,
+};
 use eyre::{Context, eyre};
 use figment::{
     Figment,
@@ -214,6 +216,21 @@ fn transactions_benchmarks<R: Rng + CryptoRng>(
     )?;
     transactions_with_r1cs_witext(map, config, &proof_schema, nets, rng)?;
     transactions_groth16_proof(map, config, &proof_schema, &cs, &pk, nets, rng)?;
+
+    let circom = TestConfig::get_transaction_batched_circom()?;
+    let circom_proof_schema = TestConfig::get_transaction_batched_proof_schema(rng)?;
+
+    // TODO the following witness extensions are singlethreaded!
+    transactions_cocircom_witext(map, config, &circom, &nets[0], &nets[1], rng)?;
+    transactions_cocircom_proof(
+        map,
+        config,
+        &circom,
+        &circom_proof_schema,
+        &nets[0],
+        &nets[1],
+        rng,
+    )?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -488,6 +505,36 @@ fn transactions_with_r1cs_witext<R: Rng + CryptoRng>(
     Ok(ExitCode::SUCCESS)
 }
 
+fn transactions_cocircom_witext<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting transaction_with_cocircom_witext benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    let mut rep3_state = Rep3State::new(net0, A2BType::default())?;
+
+    benchmark_blueprint!(
+        config,
+        &format!(
+            "transaction + witext cocircom (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        PrivateDeposit::transaction_batched_with_cocircom_witext,
+        map,
+        net0,
+        rep3_state.id.prev() as usize,
+        rep3_state.id.next() as usize,
+        (&inputs, circuit, net0, net1, &mut rep3_state)
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
 fn transactions_groth16_proof<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
     config: &Config,
@@ -527,6 +574,48 @@ fn transactions_groth16_proof<R: Rng + CryptoRng>(
         &nets[0],
         &nets[1],
         &mut rep3_states[0],
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn transactions_cocircom_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    proof_schema: &CircomProofSchema<Curve>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting transaction_cocircom_proof benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_state = Rep3State::new(net0, A2BType::default())?;
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, _, witness) = map.transaction_batched_with_cocircom_witext(
+        &inputs,
+        circuit,
+        net0,
+        net1,
+        &mut rep3_state,
+    )?;
+
+    proof_benchmark(
+        &witness,
+        &proof_schema.matrices,
+        &proof_schema.pk,
+        config,
+        &format!(
+            "transaction cocircom proof (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        net0,
+        net1,
+        &mut rep3_state,
     )?;
 
     Ok(ExitCode::SUCCESS)

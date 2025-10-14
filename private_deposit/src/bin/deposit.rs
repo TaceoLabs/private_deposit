@@ -1,8 +1,10 @@
 use ark_ff::{PrimeField, UniformRand};
 use clap::Parser;
-use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
+use co_circom::{CoCircomCompilerParsed, ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::Bn254;
-use co_noir_to_r1cs::{noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme};
+use co_noir_to_r1cs::{
+    circom::proof_schema::CircomProofSchema, noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme,
+};
 use eyre::{Context, eyre};
 use figment::{
     Figment,
@@ -205,6 +207,12 @@ fn deposit_benchmarks<R: Rng + CryptoRng>(
     deposit_with_r1cs_witext(map, config, &proof_schema, net0, net1, rng)?;
     deposit_groth16_proof(map, config, &proof_schema, &cs, &pk, net0, net1, rng)?;
 
+    let circom = TestConfig::get_deposit_circom()?;
+    let circom_proof_schema = TestConfig::get_deposit_proof_schema(rng)?;
+
+    deposit_cocircom_witext(map, config, &circom, net0, net1, rng)?;
+    deposit_cocircom_proof(map, config, &circom, &circom_proof_schema, net0, net1, rng)?;
+
     Ok(ExitCode::SUCCESS)
 }
 
@@ -226,6 +234,12 @@ fn withdraw_benchmarks<R: Rng + CryptoRng>(
     withdraw_with_r1cs_witext(map, config, &proof_schema, net0, net1, rng)?;
     withdraw_groth16_proof(map, config, &proof_schema, &cs, &pk, net0, net1, rng)?;
 
+    let circom = TestConfig::get_withdraw_circom()?;
+    let circom_proof_schema = TestConfig::get_withdraw_proof_schema(rng)?;
+
+    withdraw_cocircom_witext(map, config, &circom, net0, net1, rng)?;
+    withdraw_cocircom_proof(map, config, &circom, &circom_proof_schema, net0, net1, rng)?;
+
     Ok(ExitCode::SUCCESS)
 }
 
@@ -246,6 +260,12 @@ fn transaction_benchmarks<R: Rng + CryptoRng>(
     transaction_with_commitments(map, config, net0, rng)?;
     transaction_with_r1cs_witext(map, config, &proof_schema, net0, net1, rng)?;
     transaction_groth16_proof(map, config, &proof_schema, &cs, &pk, net0, net1, rng)?;
+
+    let circom = TestConfig::get_transaction_circom()?;
+    let circom_proof_schema = TestConfig::get_transaction_proof_schema(rng)?;
+
+    transaction_cocircom_witext(map, config, &circom, net0, net1, rng)?;
+    transaction_cocircom_proof(map, config, &circom, &circom_proof_schema, net0, net1, rng)?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -467,6 +487,31 @@ fn deposit_with_r1cs_witext<R: Rng + CryptoRng>(
     Ok(ExitCode::SUCCESS)
 }
 
+fn deposit_cocircom_witext<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting deposit_with_cocircom_witext benchmarks");
+    let key = F::rand(rng);
+    let amount = share_field(F::from(rng.r#gen::<u64>()), config.network.my_id, rng)?;
+    let amount_r = share_field(F::rand(rng), config.network.my_id, rng)?;
+
+    benchmark_blueprint!(
+        config,
+        &format!("deposit + witext cocircom (n={})", config.num_items),
+        PrivateDeposit::deposit_with_cocircom_witext,
+        map,
+        net0,
+        (key, amount, amount_r, circuit, net0, net1)
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
 #[expect(clippy::too_many_arguments)]
 fn deposit_groth16_proof<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
@@ -504,6 +549,49 @@ fn deposit_groth16_proof<R: Rng + CryptoRng>(
         pk,
         config,
         &format!("deposit groth16 proof (n={})", config.num_items),
+        net0,
+        net1,
+        &mut protocol,
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn deposit_cocircom_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    proof_schema: &CircomProofSchema<Curve>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting deposit_cocircom_proof benchmarks");
+    let key = F::rand(rng);
+    let amount = share_field(F::from(rng.r#gen::<u64>()), config.network.my_id, rng)?;
+    let amount_r = share_field(F::rand(rng), config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut protocol = Rep3State::new(net0, A2BType::default())?;
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, witness) = map.deposit_with_cocircom_witext(
+        key,
+        amount,
+        amount_r,
+        circuit,
+        net0,
+        net1,
+        &mut protocol,
+    )?;
+
+    proof_benchmark(
+        &witness,
+        &proof_schema.matrices,
+        &proof_schema.pk,
+        config,
+        &format!("deposit cocircom proof (n={})", config.num_items),
         net0,
         net1,
         &mut protocol,
@@ -560,6 +648,31 @@ fn withdraw_with_r1cs_witext<R: Rng + CryptoRng>(
     Ok(ExitCode::SUCCESS)
 }
 
+fn withdraw_cocircom_witext<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting withdraw_with_cocircom_witext benchmarks");
+    let key = TestConfig::get_random_map_key(map, rng);
+    let amount = map.read(&key).unwrap().amount;
+    let amount_r = share_field(F::rand(rng), config.network.my_id, rng)?;
+
+    benchmark_blueprint!(
+        config,
+        &format!("withdraw + witext cocircom (n={})", config.num_items),
+        PrivateDeposit::withdraw_with_cocircom_witext,
+        map,
+        net0,
+        (key, amount, amount_r, circuit, net0, net1)
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
 #[expect(clippy::too_many_arguments)]
 fn withdraw_groth16_proof<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
@@ -597,6 +710,49 @@ fn withdraw_groth16_proof<R: Rng + CryptoRng>(
         pk,
         config,
         &format!("withdraw groth16 proof (n={})", config.num_items),
+        net0,
+        net1,
+        &mut protocol,
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn withdraw_cocircom_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    proof_schema: &CircomProofSchema<Curve>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting withdraw_cocircom_proof benchmarks");
+    let key = TestConfig::get_random_map_key(map, rng);
+    let amount = map.read(&key).unwrap().amount;
+    let amount_r = share_field(F::rand(rng), config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut protocol = Rep3State::new(net0, A2BType::default())?;
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, witness) = map.withdraw_with_cocircom_witext(
+        key,
+        amount,
+        amount_r,
+        circuit,
+        net0,
+        net1,
+        &mut protocol,
+    )?;
+
+    proof_benchmark(
+        &witness,
+        &proof_schema.matrices,
+        &proof_schema.pk,
+        config,
+        &format!("withdraw cocircom proof (n={})", config.num_items),
         net0,
         net1,
         &mut protocol,
@@ -663,6 +819,40 @@ fn transaction_with_r1cs_witext<R: Rng + CryptoRng>(
     Ok(ExitCode::SUCCESS)
 }
 
+fn transaction_cocircom_witext<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting transaction_with_cocircom_witext benchmarks");
+    let sender_key = TestConfig::get_random_map_key(map, rng);
+    let receiver_key = F::rand(rng);
+    let amount = map.read(&sender_key).unwrap().amount;
+    let amount_r = share_field(F::rand(rng), config.network.my_id, rng)?;
+
+    benchmark_blueprint!(
+        config,
+        &format!("transaction + witext cocircom (n={})", config.num_items),
+        PrivateDeposit::transaction_with_cocircom_witext,
+        map,
+        net0,
+        (
+            sender_key,
+            receiver_key,
+            amount,
+            amount_r,
+            circuit,
+            net0,
+            net1
+        )
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
 #[expect(clippy::too_many_arguments)]
 fn transaction_groth16_proof<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
@@ -702,6 +892,51 @@ fn transaction_groth16_proof<R: Rng + CryptoRng>(
         pk,
         config,
         &format!("transaction groth16 proof (n={})", config.num_items),
+        net0,
+        net1,
+        &mut protocol,
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn transaction_cocircom_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    proof_schema: &CircomProofSchema<Curve>,
+    net0: &TcpNetwork,
+    net1: &TcpNetwork,
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting transaction_cocircom_proof benchmarks");
+    let sender_key = TestConfig::get_random_map_key(map, rng);
+    let receiver_key = F::rand(rng);
+    let amount = map.read(&sender_key).unwrap().amount;
+    let amount_r = share_field(F::rand(rng), config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut protocol = Rep3State::new(net0, A2BType::default())?;
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, _, witness) = map.transaction_with_cocircom_witext(
+        sender_key,
+        receiver_key,
+        amount,
+        amount_r,
+        circuit,
+        net0,
+        net1,
+        &mut protocol,
+    )?;
+
+    proof_benchmark(
+        &witness,
+        &proof_schema.matrices,
+        &proof_schema.pk,
+        config,
+        &format!("transaction cocircom proof (n={})", config.num_items),
         net0,
         net1,
         &mut protocol,
