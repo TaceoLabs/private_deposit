@@ -1,3 +1,4 @@
+pub mod actionquery;
 pub mod circom;
 pub mod deposit;
 pub mod transaction;
@@ -7,8 +8,11 @@ pub mod withdraw;
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
 use ark_ff::PrimeField;
 use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
-use co_noir_to_r1cs::{noir::ultrahonk, trace::MpcTraceHasher};
-use co_ultrahonk::prelude::ProverCrs;
+use co_noir_common::crs::ProverCrs;
+use co_noir_to_r1cs::{
+    noir::ultrahonk,
+    trace::{MpcTraceHasher, TraceHasher},
+};
 use mpc_core::{
     gadgets::poseidon2::Poseidon2,
     protocols::{
@@ -51,6 +55,30 @@ fn poseidon2_commitment_helper<const I: usize, const I2: usize, F: PrimeField, N
         result.push(trace);
     }
     Ok(result)
+}
+
+fn poseidon2_plain_commitment_helper<const I: usize, const I2: usize, F: PrimeField>(
+    mut input: [F; I2],
+) -> Vec<Vec<Rep3AcvmType<F>>> {
+    assert_eq!(2 * I, I2);
+    let domain_separator = F::from(DOMAIN_SEPARATOR);
+    let hasher = Poseidon2::<F, 2, 5>::default();
+
+    for input in input.iter_mut().step_by(2) {
+        *input += domain_separator;
+    }
+
+    let mut result = Vec::with_capacity(I);
+    for input in input.chunks_exact(2) {
+        let (_, trace) = hasher.hash_generate_noir_trace([input[0], input[1]]);
+        let trace = trace
+            .into_iter()
+            .map(Rep3AcvmType::from)
+            .collect::<Vec<Rep3AcvmType<F>>>();
+        result.push(trace);
+    }
+
+    result
 }
 
 fn poseidon2_commitments<const I: usize, const I2: usize, F: PrimeField, N: Network>(

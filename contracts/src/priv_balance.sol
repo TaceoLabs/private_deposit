@@ -35,6 +35,13 @@ contract PrivateBalance {
 
     constructor(address _mpcAdress) {
         mpcAdress = _mpcAdress;
+        ActionQuery memory aq = ActionQuery(
+            Action.Dummy,
+            address(0),
+            address(0),
+            0
+        );
+        action_queue.insert(0, aq); // Dummy action at index 0
     }
 
     struct Groth16Proof {
@@ -154,6 +161,8 @@ contract PrivateBalance {
     // This is in case of the MPC network knowing that an action is faulty.
     // TODO do we need a ZK proof that the action is indeed faulty?
     function removeActionAtIndex(uint256 index) public onlyMPC {
+        // We are not allowed to remove 0
+        require(index != 0, "Cannot remove dummy action at index 0");
         action_queue.remove(index);
     }
 
@@ -192,6 +201,9 @@ contract PrivateBalance {
                 commitments[i * 5 + 2] = ZERO_COMMITMENT; // sender_new_commitment
                 commitments[i * 5 + 3] = receiver_old_commitment;
                 commitments[i * 5 + 4] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
+
+                // Remove the action from the queue
+                action_queue.remove(index);
             } else if (aq.action == Action.Withdraw) {
                 uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
                 require(
@@ -214,6 +226,9 @@ contract PrivateBalance {
 
                 // Send the actual tokens
                 payable(aq.sender).transfer(amount);
+
+                // Remove the action from the queue
+                action_queue.remove(index);
             } else if (aq.action == Action.Transfer) {
                 uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
                 uint256 receiver_old_commitment = getBalanceCommitment(
@@ -230,6 +245,9 @@ contract PrivateBalance {
                 commitments[i * 5 + 2] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
                 commitments[i * 5 + 3] = receiver_old_commitment;
                 commitments[i * 5 + 4] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
+
+                // Remove the action from the queue
+                action_queue.remove(index);
             } else if (aq.action == Action.Dummy) {
                 // Do nothing, just add zeros to the commitments
                 require(
@@ -245,12 +263,12 @@ contract PrivateBalance {
                 commitments[i * 5 + 2] = ZERO_COMMITMENT;
                 commitments[i * 5 + 3] = ZERO_COMMITMENT;
                 commitments[i * 5 + 4] = ZERO_COMMITMENT;
+
+                // We do not remove it from the queue
             } else {
                 revert InvalidMpcAction();
             }
 
-            // Remove the action from the queue
-            action_queue.remove(index);
         }
 
         // TODO verify the ZK proof using proof and commitments

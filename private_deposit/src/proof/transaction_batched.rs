@@ -1,5 +1,3 @@
-use std::thread;
-
 use crate::{
     data_structure::{DepositValueShare, PrivateDeposit},
     proof::transaction::NUM_TRANSACTION_COMMITMENTS,
@@ -8,24 +6,25 @@ use ark_ff::{PrimeField, Zero};
 use ark_groth16::Proof;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::{AcirFormat, HonkProof, Rep3AcvmType};
+use co_noir_common::crs::ProverCrs;
 use co_noir_to_r1cs::{
     noir::{r1cs, ultrahonk},
     r1cs::noir_proof_schema::NoirProofScheme,
 };
-use co_ultrahonk::prelude::ProverCrs;
 use eyre::Context;
 use itertools::izip;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
 use noirc_artifacts::program::ProgramArtifact;
 use rand::{CryptoRng, Rng};
+use std::thread;
 
 use super::Curve;
 use super::F;
 
 // From the Noir circuits
 pub(super) const NUM_TRANSACTIONS: usize = 96;
-const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
+pub(super) const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
 
 #[derive(Clone, Debug, Default)]
 pub struct TransactionInput<K, F> {
