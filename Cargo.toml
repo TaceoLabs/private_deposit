@@ -1,5 +1,5 @@
 [workspace]
-members = ["private_deposit"]
+members = ["private_deposit", "contract-rs"]
 resolver = "3"
 
 [workspace.package]
@@ -14,6 +14,7 @@ publish = false
 readme = "./README.md"
 
 [workspace.dependencies]
+alloy = { version = "1", default-features = false }
 ark-bn254 = "^0.5.0"
 ark-ec = "^0.5.0"
 ark-ff = "^0.5.0"
@@ -37,6 +38,7 @@ rand = "0.8.5"
 rand_chacha = "0.3"
 rustls = "0.23.15"
 serde = { version = "1.0.193", features = ["derive", "rc"] }
+tokio = { version = "1" }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

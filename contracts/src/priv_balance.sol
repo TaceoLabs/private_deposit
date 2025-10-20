@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
 import {Poseidon2T2} from "./poseidon2.sol";
-import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_queue.sol";
+import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -290,5 +290,25 @@ contract PrivateBalance {
         if (!verifier.verifyProof(proof.pA, proof.pB, proof.pC, commitments)) {
             revert InvalidProof();
         }
+    }
+
+    function read_queue()
+        public
+        view
+        returns (uint256[] memory, ActionQuery[] memory)
+    {
+        uint256 size = action_queue.map_size() - 1; // Exclude dummy
+        if (size > BATCH_SIZE) {
+            size = BATCH_SIZE;
+        }
+        ActionQuery[] memory actions = new ActionQuery[](size);
+        uint256[] memory keys = new uint256[](size);
+
+        Iterator it = action_queue.iterateStart();
+        for (uint256 i = 0; i < size; i++) {
+            it = action_queue.iterateNext(it); // Doing it here already skips dummy at index 0
+            (keys[i], actions[i]) = action_queue.iterateGet(it);
+        }
+        return (keys, actions);
     }
 }
