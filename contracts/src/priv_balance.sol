@@ -5,8 +5,20 @@ import "forge-std/console.sol";
 import {Poseidon2T2} from "./poseidon2.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_queue.sol";
 
+interface IGroth16Verifier {
+    function verifyProof(
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[480] calldata _pubSignals
+    ) external view returns (bool);
+}
+
 contract PrivateBalance {
     using QueryMapLib for QueryMap;
+
+    // The groth16 verifier contract
+    IGroth16Verifier public immutable verifier;
 
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
@@ -33,7 +45,8 @@ contract PrivateBalance {
         _;
     }
 
-    constructor(address _mpcAdress) {
+    constructor(address _verifierAddress, address _mpcAdress) {
+        verifier = IGroth16Verifier(_verifierAddress);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(
             Action.Dummy,
@@ -45,9 +58,9 @@ contract PrivateBalance {
     }
 
     struct Groth16Proof {
-        uint256[2] a;
-        uint256[2][2] b;
-        uint256[2] c;
+        uint256[2] pA;
+        uint256[2][2] pB;
+        uint256[2] pC;
     }
 
     struct TransactionInput {
@@ -76,6 +89,10 @@ contract PrivateBalance {
         uint256 index
     ) public view returns (ActionQuery memory) {
         return action_queue.get(index);
+    }
+
+    function getActionQueueSize() public view returns (uint256) {
+        return action_queue.map_size();
     }
 
     function commit(
@@ -196,11 +213,11 @@ contract PrivateBalance {
                 balanceCommitments[aq.receiver] = inputs.commitments[i * 2 + 1];
 
                 // Fill the commitments array for ZK proof verification
-                commitments[i * 5 + 0] = amount_commitment;
-                commitments[i * 5 + 1] = amount_commitment; // sender_old_commitment
-                commitments[i * 5 + 2] = ZERO_COMMITMENT; // sender_new_commitment
-                commitments[i * 5 + 3] = receiver_old_commitment;
-                commitments[i * 5 + 4] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
+                commitments[i * 5 + 0] = amount_commitment; // sender_old_commitment
+                commitments[i * 5 + 1] = ZERO_COMMITMENT; // sender_new_commitment
+                commitments[i * 5 + 2] = receiver_old_commitment;
+                commitments[i * 5 + 3] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
+                commitments[i * 5 + 4] = amount_commitment;
 
                 // Remove the action from the queue
                 action_queue.remove(index);
@@ -218,11 +235,11 @@ contract PrivateBalance {
                 balanceCommitments[aq.sender] = inputs.commitments[i * 2 + 0];
 
                 // Fill the commitments array for ZK proof verification
-                commitments[i * 5 + 0] = amount_commitment;
-                commitments[i * 5 + 1] = sender_old_commitment;
-                commitments[i * 5 + 2] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
-                commitments[i * 5 + 3] = ZERO_COMMITMENT; // receiver_old_commitment
-                commitments[i * 5 + 4] = amount_commitment; // receiver_new_commitment
+                commitments[i * 5 + 0] = sender_old_commitment;
+                commitments[i * 5 + 1] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
+                commitments[i * 5 + 2] = ZERO_COMMITMENT; // receiver_old_commitment
+                commitments[i * 5 + 3] = amount_commitment; // receiver_new_commitment
+                commitments[i * 5 + 4] = amount_commitment;
 
                 // Send the actual tokens
                 payable(aq.sender).transfer(amount);
@@ -240,11 +257,11 @@ contract PrivateBalance {
                 balanceCommitments[aq.receiver] = inputs.commitments[i * 2 + 1];
 
                 // Fill the commitments array for ZK proof verification
-                commitments[i * 5 + 0] = amount; // Is already a commitment
-                commitments[i * 5 + 1] = sender_old_commitment;
-                commitments[i * 5 + 2] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
-                commitments[i * 5 + 3] = receiver_old_commitment;
-                commitments[i * 5 + 4] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
+                commitments[i * 5 + 0] = sender_old_commitment;
+                commitments[i * 5 + 1] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
+                commitments[i * 5 + 2] = receiver_old_commitment;
+                commitments[i * 5 + 3] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
+                commitments[i * 5 + 4] = amount; // Is already a commitment
 
                 // Remove the action from the queue
                 action_queue.remove(index);
@@ -268,9 +285,10 @@ contract PrivateBalance {
             } else {
                 revert InvalidMpcAction();
             }
-
         }
 
-        // TODO verify the ZK proof using proof and commitments
+        if (!verifier.verifyProof(proof.pA, proof.pB, proof.pC, commitments)) {
+            revert InvalidProof();
+        }
     }
 }

@@ -64,6 +64,10 @@ library QueryMapLib {
         return self.data[key].value;
     }
 
+    function map_size(QueryMap storage self) public view returns (uint256) {
+        return self.size;
+    }
+
     function remove(
         QueryMap storage self,
         uint256 key
