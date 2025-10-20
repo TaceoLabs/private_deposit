@@ -287,4 +287,16 @@ impl TestConfig {
         let index = rng.r#gen_range(0..ordered_map.len());
         ordered_map.keys().nth(index).unwrap().to_owned().to_owned()
     }
+
+    // Hashmap is not ordered, so we need to convert it to an ordered map first to be consistent among multiple runs
+    pub fn get_random_new_key<F: PrimeField, V, R: Rng + CryptoRng>(
+        map: &PrivateDeposit<F, V>,
+        rng: &mut R,
+    ) -> F {
+        let mut key = F::rand(rng);
+        while map.contains_key(&key) {
+            key = F::rand(rng);
+        }
+        key
+    }
 }

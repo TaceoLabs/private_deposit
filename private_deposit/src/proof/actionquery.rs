@@ -1,8 +1,8 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
+use crate::proof::NUM_WITHDRAW_NEW_BITS;
 use crate::proof::transaction::NUM_TRANSACTION_COMMITMENTS;
 use crate::proof::transaction_batched::{NUM_COMMITMENTS, NUM_TRANSACTIONS};
-use crate::proof::{NUM_AMOUNT_BITS, NUM_WITHDRAW_NEW_BITS};
-use ark_ff::{One, PrimeField, Zero};
+use ark_ff::Zero;
 use ark_groth16::Proof;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::Rep3AcvmType;
@@ -133,7 +133,7 @@ where
         (inputs, old_amount, old_blinding)
     }
 
-    #[expect(clippy::type_complexity, clippy::assertions_on_constants)]
+    #[expect(clippy::type_complexity)]
     pub fn process_deposit<N: Network>(
         receiver_old: Option<DepositValueShare<F>>,
         receiver_new: DepositValueShare<F>,
@@ -148,7 +148,7 @@ where
         Vec<Rep3PrimeFieldShare<F>>,
         Vec<Rep3PrimeFieldShare<F>>,
     )> {
-        let my_id = PartyID::try_from(net0.id())?;
+        // let my_id = PartyID::try_from(net0.id())?;
 
         let (inputs, receiver_old_amount, receiver_old_blinding) =
             Self::get_deposit_input_public_amount(
@@ -185,19 +185,23 @@ where
         traces.insert(2, plain_traces[1].clone());
 
         // The bit decomposition
-        let mut decomp_amount = vec![Rep3PrimeFieldShare::zero_share(); NUM_AMOUNT_BITS];
-        assert!(NUM_AMOUNT_BITS <= 64);
-        let mut amount = amount.into_bigint().0[0];
-        for _ in 0..NUM_AMOUNT_BITS {
-            let val = if (amount & 1) == 1 {
-                F::one()
-            } else {
-                F::zero()
-            };
-            decomp_amount.push(Rep3PrimeFieldShare::promote_from_trivial(&val, my_id));
-            amount >>= 1;
-        }
-        let decomp_sender = vec![Rep3PrimeFieldShare::zero_share(); NUM_WITHDRAW_NEW_BITS];
+        // let mut decomp_amount = Vec::with_capacity(NUM_AMOUNT_BITS);
+        // assert!(NUM_AMOUNT_BITS <= 64);
+        // let mut amount = amount.into_bigint().0[0];
+        // for _ in 0..NUM_AMOUNT_BITS {
+        //     let val = if (amount & 1) == 1 {
+        //         F::one()
+        //     } else {
+        //         F::zero()
+        //     };
+        //     decomp_amount.push(Rep3PrimeFieldShare::promote_from_trivial(&val, my_id));
+        //     amount >>= 1;
+        // }
+        // let decomp_sender = vec![Rep3PrimeFieldShare::zero_share(); NUM_WITHDRAW_NEW_BITS];
+
+        // Elements are public, so we do not need bit decomposition witnesses
+        let decomp_amount = vec![];
+        let decomp_sender = vec![];
 
         Ok((
             sender_new,
@@ -268,7 +272,7 @@ where
         Ok(composed)
     }
 
-    #[expect(clippy::type_complexity, clippy::assertions_on_constants)]
+    #[expect(clippy::type_complexity)]
     pub fn process_withdraw<N: Network>(
         sender_old: DepositValueShare<F>,
         sender_new: DepositValueShare<F>,
@@ -319,18 +323,19 @@ where
         traces.push(plain_traces[0].clone());
 
         // The bit decomposition
-        let mut decomp_amount = vec![Rep3PrimeFieldShare::zero_share(); NUM_AMOUNT_BITS];
-        assert!(NUM_AMOUNT_BITS <= 64);
-        let mut amount = amount.into_bigint().0[0];
-        for _ in 0..NUM_AMOUNT_BITS {
-            let val = if (amount & 1) == 1 {
-                F::one()
-            } else {
-                F::zero()
-            };
-            decomp_amount.push(Rep3PrimeFieldShare::promote_from_trivial(&val, my_id));
-            amount >>= 1;
-        }
+        // let mut decomp_amount = Vec::with_capacity(NUM_AMOUNT_BITS);
+        // assert!(NUM_AMOUNT_BITS <= 64);
+        // let mut amount = amount.into_bigint().0[0];
+        // for _ in 0..NUM_AMOUNT_BITS {
+        //     let val = if (amount & 1) == 1 {
+        //         F::one()
+        //     } else {
+        //         F::zero()
+        //     };
+        //     decomp_amount.push(Rep3PrimeFieldShare::promote_from_trivial(&val, my_id));
+        //     amount >>= 1;
+        // }
+        let decomp_amount = vec![]; // Amount is public, so we do not need bit decomposition witnesses
         let decomp_sender =
             Self::decompose_compose_for_withdraw(sender_new.amount, net0, rep3_state)?;
 
@@ -366,7 +371,11 @@ where
                 Rep3PrimeFieldShare::zero_share(),
             );
 
-        let decomp = vec![Rep3PrimeFieldShare::zero_share(); NUM_WITHDRAW_NEW_BITS];
+        // let decomp_amount = vec![Rep3PrimeFieldShare::zero_share(); NUM_AMOUNT_BITS];
+        // let decomp_sender = vec![Rep3PrimeFieldShare::zero_share(); NUM_WITHDRAW_NEW_BITS];
+        // Elements are public, so we do not need bit decomposition witnesses
+        let decomp_amount = vec![];
+        let decomp_sender = vec![];
 
         let inputs = vec![Rep3AcvmType::from(F::zero()); 8];
 
@@ -375,8 +384,8 @@ where
             zero,
             inputs,
             plain_traces,
-            decomp.clone(),
-            decomp,
+            decomp_amount,
+            decomp_sender,
         ))
     }
 
@@ -520,5 +529,180 @@ where
             .context("while generating Groth16 proof")?;
 
         Ok((sender_new, receiver_new, proof, public_inputs))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{data_structure::DepositValue, proof::TestConfig};
+    use ark_ff::UniformRand;
+    use mpc_core::protocols::rep3::conversion::A2BType;
+    use mpc_net::local::LocalNetwork;
+    use rand::Rng;
+    use std::sync::Arc;
+
+    #[test]
+    fn actionqueue_test() {
+        // TestConfig::install_tracing();
+
+        // Init Groth16
+        // Read constraint system
+        let pa = TestConfig::get_transaction_batched_program_artifact().unwrap();
+
+        // Get the R1CS proof schema
+        let mut rng = rand::thread_rng();
+        let (proof_schema, pk, cs) = r1cs::setup_r1cs(pa, &mut rng).unwrap();
+        let proof_schema: Arc<
+            NoirProofScheme<ark_ff::Fp<ark_ff::MontBackend<ark_bn254::FrConfig, 4>, 4>>,
+        > = Arc::new(proof_schema);
+        let pk = Arc::new(pk);
+        let cs = Arc::new(cs);
+        let size = proof_schema.size();
+        println!(
+            "R1CS size: constraints = {}, witnesses = {}",
+            size.0, size.1
+        );
+
+        // Init networks
+        let mut test_networks0 = Vec::with_capacity(NUM_TRANSACTIONS * 2);
+        let mut test_networks1 = Vec::with_capacity(NUM_TRANSACTIONS * 2);
+        let mut test_networks2 = Vec::with_capacity(NUM_TRANSACTIONS);
+        for _ in 0..(NUM_TRANSACTIONS * 2) {
+            let [net0, net1, net2] = LocalNetwork::new(3).try_into().unwrap();
+            test_networks0.push(net0);
+            test_networks1.push(net1);
+            test_networks2.push(net2);
+        }
+
+        // Get a random map and its shares
+        let mut rng = rand::thread_rng();
+        let mut plain_map =
+            TestConfig::get_random_plain_map::<F, _>(TestConfig::NUM_ITEMS, &mut rng);
+        let mut map_shares = plain_map.share(&mut rng);
+
+        // The actual testcase
+        // We test a batch with 3 transactions deposit to first new key, transfer between first and second new key, withdraw from second new key
+        for _ in 0..TestConfig::TEST_RUNS {
+            // Get two new random keys
+            let key1 = TestConfig::get_random_new_key(&plain_map, &mut rng);
+            let key2 = TestConfig::get_random_new_key(&plain_map, &mut rng);
+            let amount = F::from(rng.r#gen::<u64>());
+            let amount_blinding = F::rand(&mut rng);
+
+            // Share the amount and the blinding
+            let amount_share = rep3::share_field_element(amount, &mut rng);
+            let amount_blinding_share = rep3::share_field_element(amount_blinding, &mut rng);
+
+            // Action queue per party
+            let mut action_queue_0 = Vec::with_capacity(NUM_TRANSACTIONS);
+            let mut action_queue_1 = Vec::with_capacity(NUM_TRANSACTIONS);
+            let mut action_queue_2 = Vec::with_capacity(NUM_TRANSACTIONS);
+
+            // Deposit to key1
+            action_queue_0.push(Action::Deposit(key1, amount));
+            action_queue_1.push(Action::Deposit(key1, amount));
+            action_queue_2.push(Action::Deposit(key1, amount));
+
+            // Transfer from key1 to key2
+            action_queue_0.push(Action::Transfer(
+                key1,
+                key2,
+                amount_share[0],
+                amount_blinding_share[0],
+            ));
+            action_queue_1.push(Action::Transfer(
+                key1,
+                key2,
+                amount_share[1],
+                amount_blinding_share[1],
+            ));
+            action_queue_2.push(Action::Transfer(
+                key1,
+                key2,
+                amount_share[2],
+                amount_blinding_share[2],
+            ));
+
+            // Withdraw from key2
+            action_queue_0.push(Action::Withdraw(key2, amount));
+            action_queue_1.push(Action::Withdraw(key2, amount));
+            action_queue_2.push(Action::Withdraw(key2, amount));
+
+            // Batch queues
+            debug_assert_eq!(action_queue_0.len(), action_queue_1.len());
+            debug_assert_eq!(action_queue_0.len(), action_queue_2.len());
+            for _ in action_queue_0.len()..NUM_TRANSACTIONS {
+                action_queue_0.push(Action::Dummy);
+                action_queue_1.push(Action::Dummy);
+                action_queue_2.push(Action::Dummy);
+            }
+
+            // Update plain map (just amount, ignore blinding)
+            plain_map.insert(key1, DepositValue::new(F::zero(), F::zero()));
+            plain_map.insert(key2, DepositValue::new(F::zero(), F::zero()));
+
+            // Do the MPC work
+            let (proof, public_inputs) = thread::scope(|scope| {
+                let mut handles = Vec::with_capacity(3);
+                for (nets, map, transaction) in izip!(
+                    [
+                        &mut test_networks0,
+                        &mut test_networks1,
+                        &mut test_networks2
+                    ],
+                    &mut map_shares,
+                    [action_queue_0, action_queue_1, action_queue_2]
+                ) {
+                    let proof_schema = proof_schema.clone();
+                    let cs = cs.clone();
+                    let pk = pk.clone();
+                    let handle = scope.spawn(move || {
+                        let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+                        for net in nets.iter().take(nets.len() / 2) {
+                            rep3_states.push(Rep3State::new(net, A2BType::default()).unwrap());
+                        }
+
+                        let (_sender_read, _receiver_read, proof, public_inputs) = map
+                            .process_queue_with_groth16_proof(
+                                transaction,
+                                &proof_schema,
+                                &cs,
+                                &pk,
+                                nets.as_slice().try_into().unwrap(),
+                                rep3_states.as_mut_slice().try_into().unwrap(),
+                            )
+                            .unwrap();
+
+                        (proof, public_inputs)
+                    });
+                    handles.push(handle);
+                }
+
+                let (proof0, public_inputs0) = handles.remove(0).join().unwrap();
+                for handle in handles {
+                    let (proof, public_inputs) = handle.join().unwrap();
+                    assert_eq!(proof, proof0);
+                    assert_eq!(public_inputs, public_inputs0);
+                }
+                (proof0, public_inputs0)
+            });
+
+            // Verifiy the results
+            assert!(r1cs::verify(&pk.vk, &proof, &public_inputs).unwrap());
+        }
+
+        // Finally, compare the maps
+        for (key, plain_value) in plain_map.into_iter() {
+            let amount = plain_value.amount;
+            let share0 = map_shares[0].remove(&key).unwrap().amount;
+            let share1 = map_shares[1].remove(&key).unwrap().amount;
+            let share2 = map_shares[2].remove(&key).unwrap().amount;
+            let combined = rep3::combine_field_element(share0, share1, share2);
+            assert_eq!(amount, combined);
+        }
+        assert!(map_shares[0].is_empty());
+        assert!(map_shares[1].is_empty());
+        assert!(map_shares[2].is_empty());
     }
 }
