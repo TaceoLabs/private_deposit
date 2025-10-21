@@ -39,6 +39,11 @@ contract PrivateBalance {
     error Unauthorized();
     error InvalidProof();
     error InvalidMpcAction();
+    error NotInPrimeField();
+    error InvalidAmount();
+    error InvalidTransfer();
+    error CannotRemoveDummyAction();
+    error InvalidCommitment();
 
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
@@ -99,8 +104,12 @@ contract PrivateBalance {
         uint256 input,
         uint256 randomness
     ) public pure returns (uint256) {
-        require(input < Poseidon2T2.PRIME, "Input too large");
-        require(randomness < Poseidon2T2.PRIME, "Randomness too large");
+        if (input >= Poseidon2T2.PRIME) {
+            revert NotInPrimeField();
+        }
+        if (randomness >= Poseidon2T2.PRIME) {
+            revert NotInPrimeField();
+        }
         return Poseidon2T2.compress([input, randomness]);
     }
 
@@ -114,11 +123,12 @@ contract PrivateBalance {
         address receiver = msg.sender;
         uint256 amount = msg.value;
         // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
-        require(
-            amount <= 0xFFFFFFFFFFFFFFFFFFFF,
-            "Amount must be 80 bit at most"
-        );
-        require(amount > 0, "There must be a deposit of some tokens");
+        if (amount > 0xFFFFFFFFFFFFFFFFFFFF) {
+            revert InvalidAmount();
+        }
+        if (amount == 0) {
+            revert InvalidAmount();
+        }
 
         ActionQuery memory aq = ActionQuery(
             Action.Deposit,
@@ -134,16 +144,13 @@ contract PrivateBalance {
     function withdraw(uint256 amount) public returns (uint256) {
         address sender = msg.sender;
         // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
-        require(
-            amount <= 0xFFFFFFFFFFFFFFFFFFFF,
-            "Amount must be 80 bit at most"
-        );
-        require(amount > 0, "There must be a withdrawl of some tokens");
-        // TODO the following check is not easy to enforce because there might be a balance added via an action in the queue
-        // require(
-        //     getBalanceCommitment(sender) != ZERO_COMMITMENT,
-        //     "The user should have a balance"
-        // );
+        if (amount > 0xFFFFFFFFFFFFFFFFFFFF) {
+            revert InvalidAmount();
+        }
+        if (amount == 0) {
+            revert InvalidAmount();
+        }
+        // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
         ActionQuery memory aq = ActionQuery(
             Action.Withdraw,
@@ -162,13 +169,13 @@ contract PrivateBalance {
     ) public returns (uint256) {
         address sender = msg.sender;
         // Amount is just a commitment here
-        require(amount < Poseidon2T2.PRIME, "amount too large");
-        require(receiver != sender, "Receiver cannot be sender");
-        // TODO the following check is not easy to enforce because there might be a balance added via an action in the queue
-        // require(
-        //     getBalanceCommitment(sender) != ZERO_COMMITMENT,
-        //     "The user should have a balance"
-        // );
+        if (amount >= Poseidon2T2.PRIME) {
+            revert NotInPrimeField();
+        }
+        if (sender == receiver) {
+            revert InvalidTransfer();
+        }
+        // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
         ActionQuery memory aq = ActionQuery(
             Action.Transfer,
@@ -185,7 +192,7 @@ contract PrivateBalance {
     // TODO do we need a ZK proof that the action is indeed faulty?
     function removeActionAtIndex(uint256 index) public onlyMPC {
         // We are not allowed to remove 0
-        require(index != 0, "Cannot remove dummy action at index 0");
+        if (index == 0) revert CannotRemoveDummyAction();
         action_queue.remove(index);
     }
 
@@ -203,14 +210,15 @@ contract PrivateBalance {
             ActionQuery memory aq = action_queue.get(index);
             uint256 amount = aq.amount;
 
+            // We do not check the input commitments to be in the prime field, as this is done in the ZK proof verification
+
             if (aq.action == Action.Deposit) {
                 uint256 receiver_old_commitment = getBalanceCommitment(
                     aq.receiver
                 );
-                require(
-                    inputs.commitments[i * 2 + 0] == ZERO_COMMITMENT,
-                    "Invalid sender commitment for deposit"
-                );
+                if (inputs.commitments[i * 2 + 0] != ZERO_COMMITMENT) {
+                    revert InvalidCommitment();
+                }
 
                 // compute amount commitment
                 uint256 amount_commitment = commit(amount, 0);
@@ -229,10 +237,9 @@ contract PrivateBalance {
                 action_queue.remove(index);
             } else if (aq.action == Action.Withdraw) {
                 uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
-                require(
-                    inputs.commitments[i * 2 + 1] == ZERO_COMMITMENT,
-                    "Invalid receiver commitment for withdraw"
-                );
+                if (inputs.commitments[i * 2 + 1] != ZERO_COMMITMENT) {
+                    revert InvalidCommitment();
+                }
 
                 // compute amount commitment
                 uint256 amount_commitment = commit(amount, 0);
@@ -273,14 +280,12 @@ contract PrivateBalance {
                 action_queue.remove(index);
             } else if (aq.action == Action.Dummy) {
                 // Do nothing, just add zeros to the commitments
-                require(
-                    inputs.commitments[i * 2 + 0] == ZERO_COMMITMENT,
-                    "Invalid sender commitment for dummy"
-                );
-                require(
-                    inputs.commitments[i * 2 + 1] == ZERO_COMMITMENT,
-                    "Invalid receiver commitment for dummy"
-                );
+                if (inputs.commitments[i * 2 + 0] != ZERO_COMMITMENT) {
+                    revert InvalidCommitment();
+                }
+                if (inputs.commitments[i * 2 + 1] != ZERO_COMMITMENT) {
+                    revert InvalidCommitment();
+                }
                 commitments[i * 5 + 0] = ZERO_COMMITMENT;
                 commitments[i * 5 + 1] = ZERO_COMMITMENT;
                 commitments[i * 5 + 2] = ZERO_COMMITMENT;

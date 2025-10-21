@@ -322,12 +322,37 @@
   },
   {
     "type": "error",
+    "name": "CannotRemoveDummyAction",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidCommitment",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidMpcAction",
     "inputs": []
   },
   {
     "type": "error",
     "name": "InvalidProof",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidTransfer",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInPrimeField",
     "inputs": []
   },
   {
