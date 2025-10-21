@@ -18,7 +18,7 @@ template CheckAmount() {
     signal input amount_r;
     signal output amount_c;
 
-    var NUM_AMOUNT_BITS = 64;
+    var NUM_AMOUNT_BITS = 80;
 
     var bits[NUM_AMOUNT_BITS] = Num2Bits(NUM_AMOUNT_BITS)(amount);
     var commitment = Commit1()(amount, amount_r);

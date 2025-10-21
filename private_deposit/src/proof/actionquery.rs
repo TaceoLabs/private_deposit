@@ -184,21 +184,6 @@ where
         traces.insert(0, plain_traces[0].clone());
         traces.insert(2, plain_traces[1].clone());
 
-        // The bit decomposition
-        // let mut decomp_amount = Vec::with_capacity(NUM_AMOUNT_BITS);
-        // assert!(NUM_AMOUNT_BITS <= 64);
-        // let mut amount = amount.into_bigint().0[0];
-        // for _ in 0..NUM_AMOUNT_BITS {
-        //     let val = if (amount & 1) == 1 {
-        //         F::one()
-        //     } else {
-        //         F::zero()
-        //     };
-        //     decomp_amount.push(Rep3PrimeFieldShare::promote_from_trivial(&val, my_id));
-        //     amount >>= 1;
-        // }
-        // let decomp_sender = vec![Rep3PrimeFieldShare::zero_share(); NUM_WITHDRAW_NEW_BITS];
-
         // Elements are public, so we do not need bit decomposition witnesses
         let decomp_amount = vec![];
         let decomp_sender = vec![];
@@ -237,14 +222,6 @@ where
         net0: &N,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<Vec<Rep3PrimeFieldShare<F>>> {
-        // let decomp_sender = rep3::yao::decompose_arithmetic(
-        //     sender_new,
-        //     net0,
-        //     rep3_state,
-        //     NUM_WITHDRAW_NEW_BITS,
-        //     1,
-        // )?;
-
         let a2b_sender = rep3::conversion::a2y2b(sender_new, net0, rep3_state)?;
 
         let mut to_compose = Vec::with_capacity(NUM_WITHDRAW_NEW_BITS);
@@ -323,18 +300,6 @@ where
         traces.push(plain_traces[0].clone());
 
         // The bit decomposition
-        // let mut decomp_amount = Vec::with_capacity(NUM_AMOUNT_BITS);
-        // assert!(NUM_AMOUNT_BITS <= 64);
-        // let mut amount = amount.into_bigint().0[0];
-        // for _ in 0..NUM_AMOUNT_BITS {
-        //     let val = if (amount & 1) == 1 {
-        //         F::one()
-        //     } else {
-        //         F::zero()
-        //     };
-        //     decomp_amount.push(Rep3PrimeFieldShare::promote_from_trivial(&val, my_id));
-        //     amount >>= 1;
-        // }
         let decomp_amount = vec![]; // Amount is public, so we do not need bit decomposition witnesses
         let decomp_sender =
             Self::decompose_compose_for_withdraw(sender_new.amount, net0, rep3_state)?;
@@ -371,8 +336,6 @@ where
                 Rep3PrimeFieldShare::zero_share(),
             );
 
-        // let decomp_amount = vec![Rep3PrimeFieldShare::zero_share(); NUM_AMOUNT_BITS];
-        // let decomp_sender = vec![Rep3PrimeFieldShare::zero_share(); NUM_WITHDRAW_NEW_BITS];
         // Elements are public, so we do not need bit decomposition witnesses
         let decomp_amount = vec![];
         let decomp_sender = vec![];

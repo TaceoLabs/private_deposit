@@ -113,8 +113,11 @@ contract PrivateBalance {
     function deposit() public payable returns (uint256) {
         address receiver = msg.sender;
         uint256 amount = msg.value;
-        // TODO this is at most 2^64 / 10^18 = 18 ETH
-        require(amount <= 0xFFFFFFFFFFFFFFFF, "Amount must be 64 bit at most");
+        // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
+        require(
+            amount <= 0xFFFFFFFFFFFFFFFFFFFF,
+            "Amount must be 80 bit at most"
+        );
         require(amount > 0, "There must be a deposit of some tokens");
 
         ActionQuery memory aq = ActionQuery(
@@ -130,8 +133,11 @@ contract PrivateBalance {
 
     function withdraw(uint256 amount) public returns (uint256) {
         address sender = msg.sender;
-        // TODO this is at most 2^64 / 10^18 = 18 ETH
-        require(amount <= 0xFFFFFFFFFFFFFFFF, "Amount must be 64 bit at most");
+        // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
+        require(
+            amount <= 0xFFFFFFFFFFFFFFFFFFFF,
+            "Amount must be 80 bit at most"
+        );
         require(amount > 0, "There must be a withdrawl of some tokens");
         // TODO the following check is not easy to enforce because there might be a balance added via an action in the queue
         // require(

@@ -26,7 +26,7 @@ use rand::{CryptoRng, Rng};
 use std::{collections::BTreeMap, sync::Arc};
 
 // From the Noir circuits
-const NUM_AMOUNT_BITS: usize = 64;
+const NUM_AMOUNT_BITS: usize = 80;
 const NUM_WITHDRAW_NEW_BITS: usize = 100;
 const DOMAIN_SEPARATOR: u64 = 0xDEADBEEFu64;
 
@@ -115,29 +115,17 @@ pub(super) fn decompose_compose_for_transaction<N: Network>(
     net1: &N,
     rep3_state: &mut Rep3State,
 ) -> eyre::Result<(Vec<Rep3PrimeFieldShare<F>>, Vec<Rep3PrimeFieldShare<F>>)> {
-    // let decomp_amount =
-    //     rep3::yao::decompose_arithmetic(amount, net0, rep3_state, NUM_AMOUNT_BITS, 1)?;
-    // let decomp_sender = rep3::yao::decompose_arithmetic(
-    //     sender_new,
-    //     net1,
-    //     rep3_state,
-    //     NUM_WITHDRAW_NEW_BITS,
-    //     1,
-    // )?;
-
     let a2b_amount = rep3::conversion::a2y2b(amount, net0, rep3_state)?;
     let a2b_sender = rep3::conversion::a2y2b(sender_new, net1, rep3_state)?;
 
     let mut to_compose = Vec::with_capacity(NUM_AMOUNT_BITS + NUM_WITHDRAW_NEW_BITS);
-    assert!(NUM_AMOUNT_BITS <= 64);
-    assert!(NUM_WITHDRAW_NEW_BITS <= 128);
-    assert!(NUM_WITHDRAW_NEW_BITS > 64);
-    let mut a2b_amount_a = a2b_amount.a.to_u64_digits()[0];
-    let mut a2b_amount_b = a2b_amount.b.to_u64_digits()[0];
-    let a2b_sender_a = a2b_sender.a.to_u64_digits();
-    let a2b_sender_b = a2b_sender.b.to_u64_digits();
-    let mut a2b_sender_a = ((a2b_sender_a[1] as u128) << 64) | a2b_sender_a[0] as u128;
-    let mut a2b_sender_b = ((a2b_sender_b[1] as u128) << 64) | a2b_sender_b[0] as u128;
+
+    assert!(NUM_AMOUNT_BITS <= 128);
+    assert!(NUM_AMOUNT_BITS > 64);
+    let a2b_amount_a = a2b_amount.a.to_u64_digits();
+    let a2b_amount_b = a2b_amount.b.to_u64_digits();
+    let mut a2b_amount_a = ((a2b_amount_a[1] as u128) << 64) | a2b_amount_a[0] as u128;
+    let mut a2b_amount_b = ((a2b_amount_b[1] as u128) << 64) | a2b_amount_b[0] as u128;
     for _ in 0..NUM_AMOUNT_BITS {
         let bit = Rep3RingShare::new(
             Bit::new((a2b_amount_a & 1) == 1),
@@ -147,6 +135,14 @@ pub(super) fn decompose_compose_for_transaction<N: Network>(
         a2b_amount_a >>= 1;
         a2b_amount_b >>= 1;
     }
+
+    assert!(NUM_WITHDRAW_NEW_BITS <= 128);
+    assert!(NUM_WITHDRAW_NEW_BITS > 64);
+    let a2b_sender_a = a2b_sender.a.to_u64_digits();
+    let a2b_sender_b = a2b_sender.b.to_u64_digits();
+    let mut a2b_sender_a = ((a2b_sender_a[1] as u128) << 64) | a2b_sender_a[0] as u128;
+    let mut a2b_sender_b = ((a2b_sender_b[1] as u128) << 64) | a2b_sender_b[0] as u128;
+
     for _ in 0..NUM_WITHDRAW_NEW_BITS {
         let bit = Rep3RingShare::new(
             Bit::new((a2b_sender_a & 1) == 1),
@@ -170,15 +166,16 @@ pub(super) fn decompose_compose_for_deposit<N: Network>(
     net0: &N,
     rep3_state: &mut Rep3State,
 ) -> eyre::Result<Vec<Rep3PrimeFieldShare<F>>> {
-    // let decomp_amount =
-    //     rep3::yao::decompose_arithmetic(amount, net0, rep3_state, NUM_AMOUNT_BITS, 1)?;
-
     let a2b_amount = rep3::conversion::a2y2b(amount, net0, rep3_state)?;
 
     let mut to_compose = Vec::with_capacity(NUM_AMOUNT_BITS);
-    assert!(NUM_AMOUNT_BITS <= 64);
-    let mut a2b_amount_a = a2b_amount.a.to_u64_digits()[0];
-    let mut a2b_amount_b = a2b_amount.b.to_u64_digits()[0];
+
+    assert!(NUM_AMOUNT_BITS <= 128);
+    assert!(NUM_AMOUNT_BITS > 64);
+    let a2b_amount_a = a2b_amount.a.to_u64_digits();
+    let a2b_amount_b = a2b_amount.b.to_u64_digits();
+    let mut a2b_amount_a = ((a2b_amount_a[1] as u128) << 64) | a2b_amount_a[0] as u128;
+    let mut a2b_amount_b = ((a2b_amount_b[1] as u128) << 64) | a2b_amount_b[0] as u128;
     for _ in 0..NUM_AMOUNT_BITS {
         let bit = Rep3RingShare::new(
             Bit::new((a2b_amount_a & 1) == 1),

@@ -1,11 +1,11 @@
 pub(crate) mod hash;
 
-// The code limits transaction amounts to u64, which should be sufficient for most use cases. This is required for range checks and >= operations.
+// The code limits transaction amounts to 80 bits, which should be sufficient for most use cases. This is required for range checks and >= operations.
 // The range check for withdraw is 100 bits at the moment.
 
 // Checks the size of amount and computes a commitment
 fn check_amount(amount: Field, amount_r: Field) -> Field {
-    amount.assert_max_bit_size::<64>();
+    amount.assert_max_bit_size::<80>();
     hash::commit1(amount, amount_r)
 }
 
