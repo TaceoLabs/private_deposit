@@ -1,0 +1,475 @@
+#import "preamble.typst": *
+#import "@preview/fletcher:0.5.8" as fletcher: diagram, edge, node
+#import "@preview/frame-it:1.2.0": *
+#import "@preview/dashy-todo:0.1.0": todo
+
+#let inst_taceo = institute("TACEO", email: "walch@taceo.io");
+
+#let authors = (
+  author("Roman Walch", insts: inst_taceo),
+)
+
+#let title = "Verifiable Private Balance Contract"
+#let abstract = "In this paper we describe how to build a private token contract with MPC and collaborative SNARKs. This smart contract hides the balances of users, as well as transaction amounts when sending tokens to other participants by only showing commitments publicly. The actual balances corresponding to these commitments are stored -- as secret shares -- on an MPC network, which performs the necessary computations privately in MPC. The addition of the collaborative SNARK adds verifiability to the system, proving that enough funds are present for each transaction. Our system currently achieves a throughput of 200 transactions per second (including proof generation) on reasonable MPC hardware."
+#let keywords = ("MPC", "ZKP", "CoSNARKs", "Private Token")
+
+#show: report.with(
+  title: title,
+  authors: authors,
+  abstract: abstract,
+  keywords: keywords,
+)
+
+// Custom commands
+
+#let sk = $serif("sk")$;
+#let pk = $italic("pk")$;
+
+// frames, needs to be after the report import, as something breaks that otherwise
+
+#let (remark, implementation) = frames(
+  remark: ("Remark",),
+  implementation: ("Implementation Note",),
+)
+#show: frame-style(styles.hint)
+
+#outline()
+
+#todo(position: "inline")[TODO Discuss related work]
+
+= Introduction
+
+Privacy preserving cryptographic protocols and primitives such as secure multiparty computation (MPC), fully homomorphic encryption (FHE) and zero-knowledge proofs (ZKP) have been heavily improved in the recent years and become more feasible to apply to real world use cases every day. In this document we investigate the application of these protocols, more concretely MPC, ZKPs and their intersection, dubbed collaborative SNARKs (CoSNARKs), to the use case of private on-chain payments. Concretely, we investigate the case of confidential and verifiable on-chain token balances. There, the goal is to add privacy to an existing token (which can for example be ETH, or a stable coin such as USDCS), by adding a smart contract which stores balances to users privately, e.g., by holding cryptographic commitments or (homomorphic) ciphertexts of the balances. Then, when users transfer money amongst each other, the commitments or ciphertexts are updated accordingly, while zero knowledge proofs prove that 1) the sender has enough balance and 2) the commitments where updated correctly. In this way, the current balance of the involved users, as well as the transferred amount, stay private while everyone can verify the computations were done correctly.
+
+The users should also be able to deposit fresh tokens to its private on-chain balance, and withdraw them (if enough funds are present). To this end, when the user deposits some tokens into the smart contract, the smart contract keeps it alongside all other deposited tokens in a pool. Furthermore, when the user withdraws funds, the smart contract pays out tokens from this pool. Thus, the amount of tokens in this pool should always match the total balance of all users in the system.
+
+== Related Work
+
+#todo(position: "inline")[TODO Talk about FHE, TEE and ZK based solutions]
+#todo(
+  position: "inline",
+)[TODO Somewhere compare in depth against the FHE solution as in https://www.notion.so/FHE-based-private-Balance-29352d23baea8056ac77f18e609281cf]
+
+== Notation
+
+In the rest of the manuscript, we denote a secret sharing of a value $x in bb(F)_p$ with a bracket notation $[x]$.
+
+= High Level Overview
+
+In this section we describe our proposed solution on a high level, for more details on the involved subprotocols we refer to the next sections.
+
+In our solution, we essentially have three different entities involved: 1) A user who deposits and withdraws tokens and wants to initiate token-transfers to others; 2) A smart contract keeping private balances and a pool of deposited tokens; 3) A MPC-network holding secret-shares of the actual balances.
+
+Since it is not a goal of this use case to hide sender and receiver address, the smart contract holds a hashmap (e.g, mapping in solidity), mapping user addresses directly to commitments. Furthermore, the MPC network holds another hashmap, which maps user addresses to secret shares of the balance and the randomness used to compute the commitment which is stored on chain. Whenever the user initiates an action (i.e., deposit, withdraw, or transfer), it has to communicate this to the smart contract. The smart contract will then register the action in a queue which is continuously monitored by the MPC network. The MPC network then computes the action in MPC which leads to updated commitments. To prove it performed the updates correctly, it also generates a zero knowledge proof in MPC (which is called collaborative SNARK, or CoSNARK) proving correctness of the update. The MPC network posts the new commitments alongside the proof on chain, where the smart contract verifies the proof, updates the commitments in its hashmap if the proof was correct, removes the action from the queue, and, in case of withdraw, sends tokens to the recipient.
+
+The advantages of this systems are as follows. First, the client side computations are minimal. To initiate transactions, it only has to post a transaction on chain and, in case of transfer, send secret shares to the MPC network. No expensive client side ZK proofs need to be computed. Second, since the MPC network creates ZK proofs of all its actions, integrity of funds is always given and the MPC network can not misuse funds.
+
+= The MPC Computations
+
+In this section we have a closer look at the computations happening at the MPC network. We list all the involved algorithms in @alg:mpc_network. The first tow algorithms in @alg:mpc_network (`Map.insert` and `Map.get`) represent the access of the actual data structure, which store the secret-shared balance and randomness. Note that these are normal hashmaps. Then, each action (deposit, withdraw and transfer) essentially just create new commitment and stores them in the hashmap. Finally each action concludes by computing a zero knowledge proof in MPC to prove integrity to the smart contract.
+
+#show: style-algorithm
+#algorithm-figure(
+  "The computations on the MPC network",
+  stroke: black,
+  {
+    import algorithmic: *
+    Comment([Data structure])
+    Function("Map.insert", $k, [b], [r]$, {
+      Comment([Store balance $[b]$ and randomness [r] in the hashmap at key $k$.])
+    })
+    LineBreak
+    Function("Map.get", $k$, {
+      IfElseChain(
+        "hashmap has entry" + $([b], [r])$ + " for key " + $k$,
+        { Return[$([b], [r])$] },
+        { Return[$(0, 0)$] },
+      )
+    })
+    LineBreak
+    Function(
+      "Deposit",
+      $k, b$,
+      {
+        Assign[$[r_"old"], [b_"old"]$][`Map.get`($k$)]
+        LineComment(Assign[$[r_"new"]$][`MPC.rand()`], [Sample new blinding for commitment])
+        Assign[$[b_"new"]$][$[b_"old"] + b$]
+        (`Map.insert` + $(k, [b_"new"], [r_"new"])$,)
+        Assign[$C_"old"$][`commit`$([b_"old"], [r_"old"]$)]
+        Assign[$C_"new"$][`commit`$([b_"new"], [r_"new"]$)]
+        LineComment(Assign[$pi_"deposit"$][`proof`$(C_"old", C_"new", b)$], [Collaborative SNARK, see @fig:pi_deposit])
+        Return[$pi_"deposit", C_"new"$]
+      },
+    )
+    LineBreak
+    Function(
+      "Withdraw",
+      $k, b$,
+      {
+        Assign[$[r_"old"], [b_"old"]$][`Map.get`($k$)]
+        LineComment(Assign[$[r_"new"]$][`MPC.rand()`], [Sample new blinding for commitment])
+        Assign[$[b_"new"]$][$[b_"old"] - b$]
+        (`Map.insert` + $(k, [b_"new"], [r_"new"])$,)
+        Assign[$C_"old"$][`commit`$([b_"old"], [r_"old"]$)]
+        Assign[$C_"new"$][`commit`$([b_"new"], [r_"new"]$)]
+        LineComment(
+          Assign[$pi_"withdraw"$][`proof`$(C_"old", C_"new", b)$],
+          [Collaborative SNARK, see @fig:pi_withdraw],
+        )
+        Return[$pi_"withdraw", C_"new"$]
+      },
+    )
+    LineBreak
+    Function(
+      "Transfer",
+      $k_"sender", k_"receiver", [b], [r_b]$,
+      {
+        Assign[$[r_"s,old"], [b_"s,old"]$][`Map.get`($k_"sender"$)]
+        LineComment(Assign[$[r_"s,new"]$][`MPC.rand()`], [Sample new blinding for commitment])
+        Assign[$[b_"s,new"]$][$[b_"s,old"] - [b]$]
+        (`Map.insert` + $(k_"sender", [b_"s,new"], [r_"s,new"])$,)
+        Assign[$C_"s,old"$][`commit`$([b_"s,old"], [r_"s,old"]$)]
+        Assign[$C_"s,new"$][`commit`$([b_"s,new"], [r_"s,new"]$)]
+        LineBreak
+        Assign[$[r_"r,old"], [b_"r,old"]$][`Map.get`($k_"receiver"$)]
+        LineComment(Assign[$[r_"r,new"]$][`MPC.rand()`], [Sample new blinding for commitment])
+        Assign[$[b_"r,new"]$][$[b_"r,old"] ü [b]$]
+        (`Map.insert` + $(k_"receiver", [b_"r,new"], [r_"r new"])$,)
+        Assign[$C_"r,old"$][`commit`$([b_"r,old"], [r_"r,old"]$)]
+        Assign[$C_"r,new"$][`commit`$([b_"r,new"], [r_"r,new"]$)]
+        LineBreak
+        Assign[$C_"b"$][`commit`$([b], [r_b]$)]
+        LineComment(
+          Assign[$pi_"transfer"$][`proof`$(C_"s,old", C_"s,new", C_"r,old", C_"r,new", C_b)$],
+          [Collaborative SNARK, see @fig:pi_transfer],
+        )
+        Return[$pi_"transfer", C_"s,new", C_"r,new"$]
+      },
+    )
+  },
+)  <alg:mpc_network>
+
+= The Zero Knowledge Proofs
+
+In this section we give details to the zero knowledge proof created by the MPC network (see @alg:mpc_network).
+
+== Deposit Proof $pi_"deposit"$
+
+The deposit proof (@fig:pi_deposit) essentially proves that the commitment of the targeted user has been update correctly. It thus can be verified using the old commitment (stored in the smart contract), the new commitment (is put into the smart contract by the MPC network) and by knowing the deposit amount (which is also known by the smart contract at this point). Furthermore, we limit the deposit amount to a reasonable number, which is also part of the ZK proof. The reason for this limit is that withdraw and transfer proofs need to show that the new balance of the sender is still positive. Having a limit on the transfer amount simplifies this range proof.
+
+#remark[In our current prototype we use a limit of 80 bit for transaction amounts. In case of ethereum where balances are denoted in Wei, this allows to transact $2^80/10^18 approx 1.2$ million ETH at once, which should be enough for most use cases.]
+
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      *Proof $pi_"deposit" <-mono("prove")(C_"old", C_"new", b)$:*
+      - Private witnesses:
+        - Old balance $b_"old"$
+        - Old blinding $r_"old"$
+        - New blinding $r_"new"$
+      - Public witnesses:
+        - Amount deposit $b$
+        - Old commitment $C_"old"$
+        - New commitment $C_"new"$
+      - Statements:
+        - $b_"new" <- b_"old" + b$
+        - $C_"old"$ equals `commit`$(b_"old", r_"old")$
+        - $C_"new"$ equals `commit`$(b_"new", r_"new")$
+        - $b$ is in range (e.g., 80 bits)
+    ]],
+  caption: [The statements proven in $pi_"deposit"$.],
+)<fig:pi_deposit>
+
+== Withdraw Proof $pi_"withdraw"$
+
+The withdraw proof (@fig:pi_withdraw) is conceptually very similar to the deposit proof (@fig:pi_deposit), with the difference that the balance is subtracted instead of added, and that the resulting balance proven to be $>= 0$. The latter statement is proven by a range check.
+
+#remark[In our current prototype we somewhat arbitrarily prove that the resulting statement has at most 100 bit.]
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      *Proof $pi_"transfer" <-mono("prove")(C_"old", C_"new", b)$:*
+      - Private witnesses:
+        - Old balance $b_"old"$
+        - Old blinding $r_"old"$
+        - New blinding $r_"new"$
+      - Public witnesses:
+        - Amount withdrawn $b$
+        - Old commitment $C_"old"$
+        - New commitment $C_"new"$
+      - Statements:
+        - $b_"new" <- b_"old" - b$
+        - $C_"old"$ equals `commit`$(b_"old", r_"old")$
+        - $C_"new"$ equals `commit`$(b_"new", r_"new")$
+        - $b$ is in range (e.g., 80 bits)
+        - $b_"new"$ is zero or positive (e.g., by checking it is in range of, e.g., 100 bits)
+    ]],
+  caption: [The statements proven in $pi_"withdraw"$.],
+)<fig:pi_withdraw>
+
+== Transfer Proof $pi_"transfer"$
+
+Finally, the transfer proof (@fig:pi_transfer) is essentially a combination of the deposit proof (@fig:pi_deposit) and withdraw proof (@fig:pi_withdraw). In other words, the proof show that the sender commitments were updated as in a withdraw (including proof of enough balances), whereas the receiver commitments were updated according to a deposit proof.
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      *Proof $pi_"withdraw" <-mono("prove")(C_"s,old", C_"s,new", C_"r,old", C_"r,new", C_b)$:*
+      - Private witnesses:
+        - Old sender balance $b_"s,old"$
+        - Old sender blinding $r_"s,old"$
+        - New sender blinding $r_"s,new"$
+        - Old receiver balance $b_"r,old"$
+        - Old receiver blinding $r_"r,old"$
+        - New receiver blinding $r_"r,new"$
+        - Amount transferred $b$
+        - Amount blinding $r_b$
+      - Public witnesses:
+        - Old sender commitment $C_"s,old"$
+        - New sender commitment $C_"s,new"$
+        - Old receiver commitment $C_"r,old"$
+        - New receiver commitment $C_"r,new"$
+        - Amount commitment $C_b$
+      - Statements:
+        - $b_"s,new" <- b_"s,old" - b$
+        - $b_"r,new" <- b_"r,old" + b$
+        - $C_"s,old"$ equals `commit`$(b_"s,old", r_"s,old")$
+        - $C_"s,new"$ equals `commit`$(b_"s,new", r_"s,new")$
+        - $C_"r,old"$ equals `commit`$(b_"r,old", r_"r,old")$
+        - $C_"r,new"$ equals `commit`$(b_"r,new", r_"r,new")$
+        - $C_b$ equals `commit`$(b, r_b)$
+        - $b$ is in range (e.g., 80 bits)
+        - $b_"s,new"$ is positive (e.g., by checking it is in range of, e.g., 100 bits)
+    ]],
+  caption: [The statements proven in $pi_"transfer"$.],
+)<fig:pi_transfer>
+
+
+== Batching Proofs <sec:batch>
+
+It is possible to batch multiple transfers into one ZK proof to reduce the gas fee for verifying multiple transfers on chain. Furthermore, `deposit` and `withdraw` can be proven by $pi_"transfer"$ as well, allowing to batch deposits, withdraws and individual transfers into just one ZK proof which verifies multiple transfers.
+
+To verify a `deposit` via a transfer proof $pi_"transfer"$, we do the following:
+- Use the old balance, old blinding and new blinding of the `deposit` as the old receiver balance, old receiver blinding and new receiver blinding in a `transfer` respectively.
+- Set the amount blinding to 0.
+- Set the old sender balance to the amount $b$, the old sender blinding to 0, and the new sender blinding to 0 as well.
+
+To verify a `withdraw` via a transfer proof $pi_"transfer"$, we do the following:
+- Use the old balance, old blinding and new blinding of the `withdraw` as the old sender balance, old sender blinding and new sender blinding in a `transfer` respectively.
+- Set the amount blinding to 0.
+- Set the old receiver balance to 0, the old receiver blinding to 0, and the new receiver blinding to the amount $b$.
+
+= The Full Protocol
+
+In this section section, we describe the full protocols for reading balances, depositing/withdrawing funds and privately transfering tokens.
+
+== Read Balance
+
+In our proposed system, a user can read balances by asking the MPC network to send over the balance and the randomness used for the commitment in plain. Notice that no zero knowledge proof needs to be involved, since the user can just read the commitment corresponding to itself from the smart contract and verify whether it matches what it received from the MPC network by recomputing the commitment. Consequently, no smart contract transaction is involved as well, only a read of the commitment if a user wants to verify the response of the MPC network. Finally, to keep balances private, the user needs to send a signature to the MPC network, proving its identity. The full protocol is given in @scheme:read_balance.
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      - *The User*:
+        1. The user signs a timestamp $t$ to create the signature $sigma <- mono("sign")(t, sk)$ using its private key sk. The user sends $(t, sigma, pk)$ to the MPC network
+      - *The MPC Network*:
+        2. On receiving  $(t, sigma, pk)$ from a user, the MPC network verifies that the timestamp $t$ is still valid, verifies the signature $mono("verify")(sigma, t, pk)$, and gets $([b] ,[r]) <- mono("Map.get")(mono("address")(pk))$. It then opens $[b]$ and $[r]$ to the user.
+      - *The User*:
+        3. On receiving $(b, r)$ from the MPC network, the user reads its commitment $C$ from the smart contract and checks whether it matches `commit`$(b,r)$.
+    ]],
+  caption: [The protocol for reading balances.],
+)<scheme:read_balance>
+
+== Deposit
+
+For a deposit, the user first has to transmit funds into the smart contract. Doing so, the smart contract registers a deposit action in a queue, which gets processed by the MPC network. While processing, the MPC network updates its shares corresponding to the user address, computes a commitment to the new balance, and a ZK proof proving correctness. It then posts the proof on chain, where the smart contract verifies the proof and stores the new commitment in its internal hashmap to show the user balance has been updated. The full protocol is given in @scheme:deposit.
+
+Note that the deposit does not include any signatures, since the smart contract transaction implicitly authenticates the user already.
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      - *The User*:
+        1. The user submits a transaction to the smart contract, sending $b$ tokens to it.
+      - *The Smart Contract*:
+        2. The smart contract registers a deposit action to its MPC queue, storing the users address $k$ as receiver and the balance $b$ as amount. If $b$ is zero or too large it will revert.
+      - *The MPC Network*:
+        3. The MPC network checks the queue on the smart contract and computes $(pi_"deposit", C_"new") <- mono("Deposit")(k, b)$. It posts $pi_"deposit"$ and $C_"new"$ into the smart contract.
+      - *The Smart Contract*:
+        4. The smart contract receives $pi_"deposit"$ and $C_"new"$, verifies the proof $pi_"deposit"$ using the received $C_"new"$ and the remaining public information which are computable on chain, sets $C_"new"$ to be the new commitment corresponding to $k$ and removes the action from the MPC queue.
+    ]],
+  caption: [The protocol for depositing tokens.],
+)<scheme:deposit>
+
+== Withdraw
+
+For a withdraw, the user first has to post the intent into the smart contract. Doing so, the smart contract registers a withdraw action in a queue, which gets processed by the MPC network. While processing, the MPC network updates its shares corresponding to the user address, computes a commitment to the new balance, and a ZK proof proving correctness. It then posts the proof on chain, where the smart contract verifies the proof and stores the new commitment in its internal hashmap to show the user balance has been updated. If everything was done correctly, the smart contract sends funds to the user. The full protocol is given in @scheme:deposit.
+
+Note that the withdraw does not include any signatures, since the smart contract transaction implicitly authenticates the user already. Furthermore, if the proof does not verify, the MPC network needs to roll back the transaction to keep secret shares of the old balance.
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      - *The User*:
+        1. The user submits a transaction to the smart contract, indicating it wants to withdraw $b$ tokens.
+      - *The Smart Contract*:
+        2. The smart contract registers a withdraw action to its MPC queue, storing the users address $k$ as sender and the balance $b$ as amount. If $b$ is zero or too large it will revert.
+      - *The MPC Network*:
+        3. The MPC network checks the queue on the smart contract and computes $(pi_"withdraw", C_"new") <- mono("Withdraw")(k, b)$. It posts $pi_"withdraw"$ and $C_"new"$ into the smart contract.
+      - *The Smart Contract*:
+        4. The smart contract receives $pi_"withdraw"$ and $C_"new"$, verifies the proof $pi_"withdraw"$ using the received $C_"new"$ and the remaining public information which are computable on chain, sets $C_"new"$ to be the new commitment corresponding to $k$ and removes the action from the MPC queue. It then transmits $b$ tokens to the user address $k$.
+    ]],
+  caption: [The protocol for withdrawing tokens.],
+)<scheme:withdraw>
+
+== Transfer
+
+When a user wants to transfer funds to someone else, it first needs to post the intent into the smart contract. This intent includes the receiver address, as well as a commitment to the amount which later gets linked to the zero knowledge proof posted by the MPC network. Then, the user needs to secret-share the transfer amount, as well as the randomness used to compute the commitments, to the MPC network. To authenticate the shares and prevent other users to post shares for transfers which are not theirs, the user has to sign the secret shares it sends to the MPC network. The MPC network, on reading the queue and receiving the secret shares, updates its balances, computes commitments to the new balances, and computes a ZK proof proving correctness. It then posts the proof on chain, where the smart contract verifies the proof and stores the new commitments in its internal hashmap to show the user balances have been updated.
+
+Note that if the proof does not verify, the MPC network needs to roll back the transaction to keep secret shares of the old balances.
+
+#figure(
+  box(stroke: black, inset: 1em)[
+    #align(left)[
+      - *The User*:
+        1. The user samples a random value $r_b$ and computes the commitment $C_b <- mono("commit")(b, r_b)$. It then submits a transaction to the smart contract, indicating it wants to transfer tokens to $k_"receiver"$, where the amount corresponds to $C_b$. It also sends the secret share $b_i$ of $b$ and the secret share $r_i$ of $r_b$ to the $i$-th MPC party, alongside its user address $k_"sender"$ and a signature $sigma_i <- mono("sign")(b_i || r_i, pk)$, where $pk$ corresponds to $k_"sender"$.
+      - *The Smart Contract*:
+        2. The smart contract registers a transfer action to its MPC queue, storing the users address $k_"sender"$ as sender, the address $k_"receiver"$ as receiver, and the commitment $C_b$.
+      - *The MPC Network*:
+        3. The MPC network receives $([b], [r_b])$ and the signatures $sigma_i$ for each party $i$. Each party $i$ verifies the signature $sigma_i$ using its shares $b_i$ and $r_i$, and matches the shares with the transfer request in the queue of the smart contract. If everything is ok, it computes $(pi_"transfer", C_"s,new", C_"r,new") <- mono("Transfer")(k_"sender", k_"receiver", [b], [r_b])$. It posts $pi_"transfer"$ and the commitments $C_"s,new"$ and $C_"r,new"$ into the smart contract.
+      - *The Smart Contract*:
+        4. The smart contract receives $pi_"transfer"$ and the commitments $C_"s,new"$ and  $C_"r,new"$ and verifies the proof $pi_"transfer"$ using the received commitments and the remaining public information which are computable on chain. It then sets $C_"s,new"$ to be the new commitment corresponding to $k_"sender"$, $C_"r,new"$ to be the new commitment corresponding to $k_"receiver"$ and removes the action from the MPC queue.
+    ]],
+  caption: [The protocol for withdrawing tokens.],
+)<scheme:transfer>
+
+= MPC Benchmarks
+
+In this section we give some benchmarks of our currently implemented prototype. In all the benchmarks we use the 3-party replicated secret sharing protocol @ABY3. As commitments we use hash-based commitments using the Poseidon2 hash function @Poseidon2. Concretely, we use Poseidon2 with an internal statesize of $t=2$ in feed-forward mode of operation. In other words, a commitment to $x$ with randomness $r$ is computed as $C = mono("Poseidon2.permute")(x + d, r)[0] + x$, where $d$ is a domain separator. We use the Noir#footnote[https://noir-lang.org/] language to write the ZK circuits, use a compiler#footnote[https://github.com/TaceoLabs/CoNoir-to-R1CS] to translate it to an R1CS system and use Co-Circom#footnote[https://github.com/TaceoLabs/co-snarks/tree/main/co-circom] to create a Groth16 @Groth16 proof in MPC. Thereby, Groth16 is instantiated over the BN254 pairing friendly curve.
+
+In all benchmarks in this section, we give numbers for different subprotocols. Thereby, `No Proofs` refers to all MPC computations without verifiability. In other words, only the data structure is updated and commitments are computed in MPC. On the contrary, `Full` refers to the full MPC protocol including the CoGroth16 proof. Furthermore, we give benchmarks for the two major parts involved in `Full`, namely `WitExt` (witness extension) which includes modifying the data structure and creating the witness for R1CS constraint system in MPC#footnote[This also implicitly creates the commitments.], and `CoGroth16` which translates the R1CS constraint system (including secret shared witness) into a zero knowledge proof.
+
+== Single Benchmarks <sec:bench_single>
+
+In this section we give benchmarks for processing one individual deposit, withdraw, and transactions. Runtimes are given, in @table:runtime, the corresponding throughput in actions per second in @table:throughput, while @table:comm gives the communication between the parties. All benchmarks in this section were performed on a co-located setup where each party is a m7a.4xlarge AWS instance with 16 CPU cores and a network bandwidth of 12.5 GBit/s.
+
+#figure(
+  table(
+    stroke: none,
+    columns: 5,
+    table.hline(),
+    align: right,
+    [Protocol], [No Proofs], [WitExt], [CoGroth16], [Full],
+    table.hline(),
+    [Deposit], [4.4], [5.9], [8.1], [14.0],
+    [Withdraw], [4.1], [6.2], [8.6], [14.8],
+    [Transfer], [4.3], [6.9], [12.3], [19.2],
+    table.hline(),
+  ),
+  caption: [Runtime in `ms` for all the steps involved in deposit, withdraw and transfer.],
+) <table:runtime>
+
+#figure(
+  table(
+    stroke: none,
+    columns: 5,
+    table.hline(),
+    align: right,
+    [Protocol], [No Proofs], [WitExt], [CoGroth16], [Full],
+    table.hline(),
+    [Deposit], [227.3], [169.5], [123.5], [71.4],
+    [Withdraw], [243.9], [161.3], [116.3], [67.6],
+    [Transfer], [232.6], [144.9], [81.3], [52.1],
+    table.hline(),
+  ),
+  caption: [Throughput in `1/s` for all the steps involved in deposit, withdraw and transfer.],
+) <table:throughput>
+
+#figure(
+  table(
+    stroke: none,
+    columns: 5,
+    table.hline(),
+    align: right,
+    [Protocol], [No Proofs], [WitExt], [CoGroth16], [Full],
+    table.hline(),
+    [Deposit], [35.1], [37.8], [0.2], [38.0],
+    [Withdraw], [35.1], [41.0], [0.2], [41.2],
+    [Transfer], [58.1], [64.3], [0.2], [64.5],
+    table.hline(),
+  ),
+  caption: [Communication in `kB` for all the steps involved in deposit, withdraw and transfer.],
+) <table:comm>
+
+The tables show, that processing an individual action is reasonably fast, where a singlethreated execution without proof takes roughly $4$ `ms`, which gets increased to $19$ `ms` for the transfer action executed with ZK proof#footnote[Witness extension is singlethreated, while CoGroth16 uses multithreading internally.] Furthermore, communication is less than $65$ `kB` in any case. 'This leads to a throughput of 230 wihtout proof and about 50 with proof.
+
+== Batched Benchmarks <sec:bench_batch>
+
+In this section we give benchmarks for a multithread and batched version of the protocol (see @sec:batch). Concretely, we batch 96 transaction. Thereby, `No Proofs` and `WitExt` compute each individual transaction in a separate thread, whereas `CoGroth16` produces on ZK proof which verifies 96 transactions internally.#footnote[CoGroth16 uses multithreading internally to compute the multiscalar multiplications more efficiently.] The benchmarks are given in @table:batched_runtime for two different machine setups. Furthermore, @table:batched_throughput gives the corresponding throughput of transactions per second.
+
+For the two machine setup we benchmark the case where each MPC party is one m7a.4xlarge AWS instance with 16 CPU cores and a network bandwidth of 12.5 GBit/s (same as for the benchmarks in the previous section), and the case where each MPC party is a m7a.24xlarge instance with a bandwidth of 37.5 GBit/s. The latter machine has 96 CPUs which matches the batch size we benchmark.
+
+#figure(
+  table(
+    stroke: none,
+    columns: 5,
+    table.hline(),
+    align: right,
+    [Machine], [No Proofs], [WitExt], [CoGroth16], [Full],
+    table.hline(),
+    [m7a.4xlarge], [22.9], [197.8], [595.8], [793.6],
+    [m7a.24xlarge], [15.3], [185.9], [273.0], [458.9],
+    table.hline(),
+  ),
+  caption: [Runtime in `ms` for all the steps involved in a batch of 96 transfers.],
+) <table:batched_runtime>
+
+#figure(
+  table(
+    stroke: none,
+    columns: 5,
+    table.hline(),
+    align: right,
+    [Machine], [No Proofs], [WitExt], [CoGroth16], [Full],
+    table.hline(),
+    [m7a.4xlarge], [4192.1], [485.3], [161.1], [121.0],
+    [m7a.24xlarge], [6274.5], [516.4], [351.6], [209.2],
+    table.hline(),
+  ),
+  caption: [Throughput in `1/s` for all the steps involved in a batch of 96 transfers.],
+) <table:batched_throughput>
+
+Notice that multithreading has a profound effect on the performance. A batch of 96 transaction requires between $500$ `ms` and $800$ `ms`, depending on machine setup, for modifying the data structure including ZK proof. Without proof the runtime is roughly $20$ `ms`. Throughput, thus is increased to roughly 200 transactions per second with proof, and 6000 for a non-verifiable variant.
+
+Notice, that there is not much difference between the runtime of the witness extension (`WitExt`) in the two different machine setups. We believe that the small difference is mostly due to the larger network bandwidth of the m7a.24xlarge instances, and that the performance of the witness extension is mostly network bound.
+
+Proof generation, on the other hand, is clearly CPU bound, where the increase of number of CPUs from 16 to 96 improves performance by more than two-fold.
+
+= Issues and Future Work
+
+In this section we discuss some issues of the currently described protocol and potential future work.
+
+== Implications of Batching Transactions
+
+A prototype implemented from the batched version of our protocol (see @sec:batch and @sec:bench_batch) has the advantage that a batch of transaction (e.g., 96) only creates 1 proof, reducing on-chain gas fees for proof verification. However, it comes with some drawbacks as well.
+
+First, when creating a ZK proof for a single transaction, the smart contract and the MPC network immediately know if the transaction was valid or faulty by verifying the proof. In a batched version of the proof, however, if one transaction fails, the whole batch fails. Currently, there is also no method implemented to detect which of the transactions in a batch were valid or faulty. We think of two potential solutions to this issue.
+
+The first solution is checking in MPC whether the range checks in the zero knowledge proofs (see @fig:pi_transfer) would be valid or not and open the resulting valid-bit. Based on this bit, the MPC network would then decide to not include the transaction in a batch. To cleanup the on-chain action queue, the MPC network would then call a removal function exposed by the smart contract to remove the faulty transaction from the queue. While this solution is simple and should induce only small performance overhead, it comes with the disadvantage that the existence of a removal function for the on-chain action queue gives the MPC network the possibility to ignore transactions and censor specific user addresses.
+
+The second solution is modifying the zero knowledge proofs to be valid even for faulty transactions, but outputting a bit indicating whether the transaction was valid. In other words, the range constraints are modified to output 0 if in range and 1 if not in range. This bit is an extra input to the smart contract and the proof verification, and if the bit is set, the smart contract removes the faulty action from the queue.
+
+If the latter solution is implemented, it is probably also required to let the smart contract enforce the order of the processed transaction to prevent letting the MPC network just ignoring some transactions indefinitely.
+
+== Concurrent Transactions and Sharding
+
+The current prototype implements multithreading by first modifying the data structure in sequence, and then spawning a thread to compute the witness extension fully in parallel. This has the advantage that we do not need to care about multiple transactions modifying the same commitments in our hashmap concurrently which would lead to faulty results. Furthermore, modifying the data structure is simple and requires no communication, so no performance is lost by doing it in sequence.
+
+This also has the advantage that we can scale up our solution with sharding computations to multiple servers. First on thread takes care of modifying the data structure and then delegates the witness extension and proof generation to a different MPC setup.
+
+The downside of such an approach, however, is that if the MPC network detects faulty transactions, it needs to rewind all the transactions that came after the faulty one, since they might have been using a faulty commitment as input. This would not be the case if a batch only contains a disjoint set of senders and receivers.
+
+
+#bibliography("references.bib")
