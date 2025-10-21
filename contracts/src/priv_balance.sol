@@ -216,7 +216,7 @@ contract PrivateBalance {
                 uint256 receiver_old_commitment = getBalanceCommitment(
                     aq.receiver
                 );
-                if (inputs.commitments[i * 2 + 0] != ZERO_COMMITMENT) {
+                if (inputs.commitments[i * 2] != 0) {
                     revert InvalidCommitment();
                 }
 
@@ -227,7 +227,7 @@ contract PrivateBalance {
                 balanceCommitments[aq.receiver] = inputs.commitments[i * 2 + 1];
 
                 // Fill the commitments array for ZK proof verification
-                commitments[i * 5 + 0] = amount_commitment; // sender_old_commitment
+                commitments[i * 5] = amount_commitment; // sender_old_commitment
                 commitments[i * 5 + 1] = ZERO_COMMITMENT; // sender_new_commitment
                 commitments[i * 5 + 2] = receiver_old_commitment;
                 commitments[i * 5 + 3] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
@@ -237,7 +237,7 @@ contract PrivateBalance {
                 action_queue.remove(index);
             } else if (aq.action == Action.Withdraw) {
                 uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
-                if (inputs.commitments[i * 2 + 1] != ZERO_COMMITMENT) {
+                if (inputs.commitments[i * 2 + 1] != 0) {
                     revert InvalidCommitment();
                 }
 
@@ -245,11 +245,11 @@ contract PrivateBalance {
                 uint256 amount_commitment = commit(amount, 0);
 
                 // Update the commitments on-chain
-                balanceCommitments[aq.sender] = inputs.commitments[i * 2 + 0];
+                balanceCommitments[aq.sender] = inputs.commitments[i * 2];
 
                 // Fill the commitments array for ZK proof verification
-                commitments[i * 5 + 0] = sender_old_commitment;
-                commitments[i * 5 + 1] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
+                commitments[i * 5] = sender_old_commitment;
+                commitments[i * 5 + 1] = inputs.commitments[i * 2]; // sender_new_commitment
                 commitments[i * 5 + 2] = ZERO_COMMITMENT; // receiver_old_commitment
                 commitments[i * 5 + 3] = amount_commitment; // receiver_new_commitment
                 commitments[i * 5 + 4] = amount_commitment;
@@ -266,12 +266,12 @@ contract PrivateBalance {
                 );
 
                 // Update the commitments on-chain
-                balanceCommitments[aq.sender] = inputs.commitments[i * 2 + 0];
+                balanceCommitments[aq.sender] = inputs.commitments[i * 2];
                 balanceCommitments[aq.receiver] = inputs.commitments[i * 2 + 1];
 
                 // Fill the commitments array for ZK proof verification
-                commitments[i * 5 + 0] = sender_old_commitment;
-                commitments[i * 5 + 1] = inputs.commitments[i * 2 + 0]; // sender_new_commitment
+                commitments[i * 5] = sender_old_commitment;
+                commitments[i * 5 + 1] = inputs.commitments[i * 2]; // sender_new_commitment
                 commitments[i * 5 + 2] = receiver_old_commitment;
                 commitments[i * 5 + 3] = inputs.commitments[i * 2 + 1]; // receiver_new_commitment
                 commitments[i * 5 + 4] = amount; // Is already a commitment
@@ -280,13 +280,13 @@ contract PrivateBalance {
                 action_queue.remove(index);
             } else if (aq.action == Action.Dummy) {
                 // Do nothing, just add zeros to the commitments
-                if (inputs.commitments[i * 2 + 0] != ZERO_COMMITMENT) {
+                if (inputs.commitments[i * 2] != 0) {
                     revert InvalidCommitment();
                 }
-                if (inputs.commitments[i * 2 + 1] != ZERO_COMMITMENT) {
+                if (inputs.commitments[i * 2 + 1] != 0) {
                     revert InvalidCommitment();
                 }
-                commitments[i * 5 + 0] = ZERO_COMMITMENT;
+                commitments[i * 5] = ZERO_COMMITMENT;
                 commitments[i * 5 + 1] = ZERO_COMMITMENT;
                 commitments[i * 5 + 2] = ZERO_COMMITMENT;
                 commitments[i * 5 + 3] = ZERO_COMMITMENT;

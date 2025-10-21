@@ -13,8 +13,6 @@ contract PrivateBalanceTest is Test {
     address mpcAdress = address(0x4);
 
     uint public constant BATCH_SIZE = 96;
-    uint public constant ZERO_COMMITMENT =
-        0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
 
     function setUp() public {
         verifier = new Groth16Verifier();
@@ -151,7 +149,7 @@ contract PrivateBalanceTest is Test {
         PrivateBalance.TransactionInput memory inputs;
         // Deposit by Alice
         inputs.action_index[0] = 1;
-        inputs.commitments[0] = ZERO_COMMITMENT;
+        // inputs.commitments[0] = 0;
         inputs.commitments[1] = alice_deposit_commitment;
 
         // Transfer from Alice to Bob
@@ -162,13 +160,13 @@ contract PrivateBalanceTest is Test {
         // Withdraw by Bob
         inputs.action_index[2] = 3;
         inputs.commitments[4] = bob_withdraw_commitment;
-        inputs.commitments[5] = ZERO_COMMITMENT;
+        // inputs.commitments[5] = 0;
 
         // Dummies
         for (uint256 i = 3; i < BATCH_SIZE; i++) {
-            inputs.action_index[i] = 0;
-            inputs.commitments[i * 2] = ZERO_COMMITMENT;
-            inputs.commitments[i * 2 + 1] = ZERO_COMMITMENT;
+            // inputs.action_index[i] = 0;
+            // inputs.commitments[i * 2] = 0;
+            // inputs.commitments[i * 2 + 1] = 0;
         }
 
         vm.startPrank(mpcAdress);
