@@ -1,3 +1,4 @@
+pub mod ae;
 pub mod priv_balance;
 
 use std::array;
@@ -17,6 +18,8 @@ use crate::priv_balance::PrivateBalance::{Groth16Proof, TransactionInput};
 
 pub(crate) type F = ark_bn254::Fr;
 pub(crate) type Curve = Bn254;
+
+// pub fn create_ciphertext
 
 pub fn usize_to_u256(value: usize) -> U256 {
     U256::from(value)

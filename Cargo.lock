@@ -1010,6 +1010,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
+name = "ark-babyjubjub"
+version = "0.5.0"
+source = "git+https://github.com/TaceoLabs/nullifier-oracle-service?rev=8d04f68c136a2185f6898c9613e7e7ac229e2651#8d04f68c136a2185f6898c9613e7e7ac229e2651"
+dependencies = [
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-std 0.5.0",
+]
+
+[[package]]
 name = "ark-bls12-381"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1590,7 +1601,7 @@ dependencies = [
  "bitflags 2.9.4",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -5691,6 +5702,7 @@ dependencies = [
 name = "private_deposit"
 version = "0.1.0"
 dependencies = [
+ "ark-babyjubjub",
  "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
@@ -6437,11 +6449,14 @@ name = "rust-contract"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "ark-babyjubjub",
  "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
  "ark-groth16",
  "eyre",
+ "mpc-core",
+ "rand 0.8.5",
  "tokio",
  "tracing",
 ]

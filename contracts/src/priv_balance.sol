@@ -23,17 +23,29 @@ contract PrivateBalance {
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
 
+    // MPC public keys
+    BabyJubJubElement public mpc_pk1;
+    BabyJubJubElement public mpc_pk2;
+    BabyJubJubElement public mpc_pk3;
+
     // Stores the commitments to the balances of users
     mapping(address => uint256) public balanceCommitments;
 
     // Stores the actions which are not yet processed
     QueryMap public action_queue;
 
+    // Stores the secret shares of the amount and randomness for a transfer
+    mapping(uint256 => Ciphertext) private shares;
+
     // Batch size for processing actions
     uint private constant BATCH_SIZE = 96;
     // Commitment to zero balance commit(0, 0)
     uint private constant ZERO_COMMITMENT =
         0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
+
+    // BabyJubJub curve parameters
+    uint256 public constant A = 168700;
+    uint256 public constant D = 168696;
 
     // The error codes
     error Unauthorized();
@@ -44,13 +56,34 @@ contract PrivateBalance {
     error InvalidTransfer();
     error CannotRemoveDummyAction();
     error InvalidCommitment();
+    error NotOnCurve();
 
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
         _;
     }
 
-    constructor(address _verifierAddress, address _mpcAdress) {
+    constructor(
+        address _verifierAddress,
+        address _mpcAdress,
+        BabyJubJubElement memory _mpc_pk1,
+        BabyJubJubElement memory _mpc_pk2,
+        BabyJubJubElement memory _mpc_pk3
+    ) {
+        mpc_pk1 = _mpc_pk1;
+        mpc_pk2 = _mpc_pk2;
+        mpc_pk3 = _mpc_pk3;
+
+        if (!isOnBabyJubJubCurve(_mpc_pk1.x, _mpc_pk1.y)) {
+            revert NotOnCurve();
+        }
+        if (!isOnBabyJubJubCurve(_mpc_pk2.x, _mpc_pk2.y)) {
+            revert NotOnCurve();
+        }
+        if (!isOnBabyJubJubCurve(_mpc_pk3.x, _mpc_pk3.y)) {
+            revert NotOnCurve();
+        }
+
         verifier = IGroth16Verifier(_verifierAddress);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(
@@ -60,6 +93,18 @@ contract PrivateBalance {
             0
         );
         action_queue.insert(0, aq); // Dummy action at index 0
+    }
+
+    struct BabyJubJubElement {
+        uint256 x;
+        uint256 y;
+    }
+
+    // We do not store a nonce, since we assume that the sender_pk is randomly sampled each time
+    struct Ciphertext {
+        uint256[3] amount;
+        uint256[3] r;
+        BabyJubJubElement sender_pk;
     }
 
     struct Groth16Proof {
@@ -98,6 +143,12 @@ contract PrivateBalance {
 
     function getActionQueueSize() public view returns (uint256) {
         return action_queue.map_size();
+    }
+
+    function getCiphertextAtIndex(
+        uint256 index
+    ) public view returns (Ciphertext memory) {
+        return shares[index];
     }
 
     function commit(
@@ -165,7 +216,8 @@ contract PrivateBalance {
 
     function transfer(
         address receiver,
-        uint256 amount
+        uint256 amount,
+        Ciphertext calldata ciphertext
     ) public returns (uint256) {
         address sender = msg.sender;
         // Amount is just a commitment here
@@ -177,6 +229,19 @@ contract PrivateBalance {
         }
         // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
+        if (
+            !isOnBabyJubJubCurve(ciphertext.sender_pk.x, ciphertext.sender_pk.y)
+        ) {
+            revert NotOnCurve();
+        }
+
+        if (ciphertext.amount[0] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[1] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[2] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+        if (ciphertext.r[0] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+        if (ciphertext.r[1] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+        if (ciphertext.r[2] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+
         ActionQuery memory aq = ActionQuery(
             Action.Transfer,
             sender,
@@ -185,6 +250,7 @@ contract PrivateBalance {
         );
         uint256 index = getNextFreeQueueIndex();
         action_queue.insert(index, aq);
+        shares[index] = ciphertext;
         return index;
     }
 
@@ -278,6 +344,7 @@ contract PrivateBalance {
 
                 // Remove the action from the queue
                 action_queue.remove(index);
+                delete shares[index];
             } else if (aq.action == Action.Dummy) {
                 // Do nothing, just add zeros to the commitments
                 if (inputs.commitments[i * 2] != 0) {
@@ -321,5 +388,27 @@ contract PrivateBalance {
             (keys[i], actions[i]) = action_queue.iterateGet(it);
         }
         return (keys, actions);
+    }
+
+    // Check if point is on curve: a*x^2 + y^2 = 1 + d*x^2*y^2
+    function isOnBabyJubJubCurve(
+        uint256 x,
+        uint256 y
+    ) public pure returns (bool) {
+        if (x == 0 && y == 1) return true;
+        if (x >= Poseidon2T2.PRIME || y >= Poseidon2T2.PRIME) return false;
+
+        uint256 xx = mulmod(x, x, Poseidon2T2.PRIME);
+        uint256 yy = mulmod(y, y, Poseidon2T2.PRIME);
+        uint256 axx = mulmod(A, xx, Poseidon2T2.PRIME);
+        uint256 dxxyy = mulmod(
+            D,
+            mulmod(xx, yy, Poseidon2T2.PRIME),
+            Poseidon2T2.PRIME
+        );
+
+        return
+            addmod(axx, yy, Poseidon2T2.PRIME) ==
+            addmod(1, dxxyy, Poseidon2T2.PRIME);
     }
 }

@@ -335,6 +335,8 @@ When a user wants to transfer funds to someone else, it first needs to post the 
 
 Note that if the proof does not verify, the MPC network needs to roll back the transaction to keep secret shares of the old balances.
 
+#remark[The client can, instead of sending the secret shares to the MPC network, post encryptions of the shares on chain while registering the transfer. This trades the advantage of not requiring interaction between the MPC network and the client with a higher gas and calldata cost for the client when submitting the ciphertexts to the smart contract.]
+
 #figure(
   box(stroke: black, inset: 1em)[
     #align(left)[
