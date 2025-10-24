@@ -2326,7 +2326,7 @@ dependencies = [
 [[package]]
 name = "co-noir-to-r1cs"
 version = "0.1.0"
-source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=445ae824df865dda800756261bbd6b14ed2460d0#445ae824df865dda800756261bbd6b14ed2460d0"
+source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=42499825570aa0d33f54b9d8ff1f29e17349bbae#42499825570aa0d33f54b9d8ff1f29e17349bbae"
 dependencies = [
  "acir",
  "ark-bn254",
