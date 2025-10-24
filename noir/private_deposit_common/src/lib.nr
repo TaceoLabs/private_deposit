@@ -81,6 +81,55 @@ pub fn transaction(
     )
 }
 
+// Returns 1 if val == reconstruction from val_bits, else returns zero
+fn range_check<let N: u32>(val: Field, val_bits: [Field; N], diff_or_zero: Field) -> Field {
+    for i in 0..N {
+        val_bits[i].assert_max_bit_size::<1>();
+    }
+    let mut reconstructed = val_bits[N - 1];
+    for i in 0..N - 1 {
+        reconstructed += reconstructed + val_bits[N - 2 - i];
+    }
+    1 - (val - reconstructed) * diff_or_zero
+}
+
+fn combine_two_range_checks(is_valid1: Field, is_valid2: Field) -> Field {
+    // If not both are valid, return 0
+    is_valid1 * is_valid2
+}
+
+pub fn transaction_for_batch(
+    sender_old_balance: Field,
+    sender_old_r: Field,
+    receiver_old_balance: Field,
+    receiver_old_r: Field,
+    amount: Field,
+    amount_bits: [Field; 80],
+    amount_inv: Field,
+    sender_new_bits: [Field; 100],
+    sender_new_inv: Field,
+    amount_r: Field,
+    sender_new_r: Field,
+    receiver_new_r: Field,
+) -> (Field, Field, Field, Field, Field, Field) {
+    let amount_valid = range_check::<80>(amount, amount_bits, amount_inv);
+    let amount_commitment = hash::commit1(amount, amount_r);
+
+    let sender_new_balance = sender_old_balance - amount;
+    let sender_new_valid = range_check::<100>(sender_new_balance, sender_new_bits, sender_new_inv);
+    let sender_old_commitment = hash::commit1(sender_old_balance, sender_old_r);
+    let sender_new_commitment = hash::commit1(sender_new_balance, sender_new_r);
+
+    let (receiver_old_commitment, receiver_new_commitment) =
+        deposit_inner(receiver_old_balance, receiver_old_r, amount, receiver_new_r);
+
+    let combined_valid = combine_two_range_checks(amount_valid, sender_new_valid);
+    (
+        sender_old_commitment, sender_new_commitment, receiver_old_commitment,
+        receiver_new_commitment, amount_commitment, combined_valid,
+    )
+}
+
 #[test(should_fail)]
 fn withdraw_too_much() {
     // This should fail, since we try to withdraw more than the balance
