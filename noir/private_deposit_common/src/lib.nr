@@ -98,6 +98,7 @@ fn combine_two_range_checks(is_valid1: Field, is_valid2: Field) -> Field {
     is_valid1 * is_valid2
 }
 
+// TODO we need to also proof that lowest bits of amount equals the ones used in the commitment
 pub fn transaction_for_batch(
     sender_old_balance: Field,
     sender_old_r: Field,
