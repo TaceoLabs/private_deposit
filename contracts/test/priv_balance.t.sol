@@ -5,10 +5,12 @@ import {Test, console} from "forge-std/Test.sol";
 import {PrivateBalance} from "../src/priv_balance.sol";
 import {Action, ActionQuery} from "../src/action_queue.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
+import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
 
 contract PrivateBalanceTest is Test {
     PrivateBalance public priv_balance;
     Groth16Verifier public verifier;
+    Poseidon2T2_BN254 public poseidon2;
 
     address mpcAdress = address(0x4);
 
@@ -62,8 +64,10 @@ contract PrivateBalanceTest is Test {
 
     function setUp() public {
         verifier = new Groth16Verifier();
+        poseidon2 = new Poseidon2T2_BN254();
         priv_balance = new PrivateBalance(
             address(verifier),
+            address(poseidon2),
             mpcAdress,
             mpc_pk1,
             mpc_pk2,

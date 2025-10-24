@@ -8,6 +8,11 @@
         "internalType": "address"
       },
       {
+        "name": "_poseidon2Address",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "_mpcAdress",
         "type": "address",
         "internalType": "address"
@@ -146,7 +151,7 @@
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -356,6 +361,19 @@
         "name": "y",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "poseidon2",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract Poseidon2T2_BN254"
       }
     ],
     "stateMutability": "view"

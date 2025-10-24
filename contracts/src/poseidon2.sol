@@ -2,13 +2,16 @@
 
 pragma solidity >=0.8.8;
 
-library Poseidon2T2 {
+contract Poseidon2T2_BN254 {
     uint256 constant PRIME =
         0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
 
-    function compress(uint256[2] memory inputs) public pure returns (uint256) {
-        // Also add the domain separator 0xDEADBEEF
-        uint256 l = (inputs[0] + 0xDEADBEEF) % PRIME;
+    function compress(
+        uint256[2] memory inputs,
+        uint256 domain_sep
+    ) external pure returns (uint256) {
+        // Also add the domain separator
+        uint256 l = (inputs[0] + domain_sep) % PRIME;
         uint256 r = inputs[1];
         unchecked {
             uint256 s = l + r;

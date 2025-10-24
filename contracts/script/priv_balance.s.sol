@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {PrivateBalance} from "../src/priv_balance.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
+import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
 
 contract PrivateBalanceScript is Script {
     PrivateBalance public priv_balance;
@@ -14,6 +15,7 @@ contract PrivateBalanceScript is Script {
         vm.startBroadcast();
 
         Groth16Verifier verifier = new Groth16Verifier();
+        Poseidon2T2_BN254 poseidon2 = new Poseidon2T2_BN254();
         address mpcAdress = address(0x4);
 
         // MPC Public Keys
@@ -35,6 +37,7 @@ contract PrivateBalanceScript is Script {
 
         priv_balance = new PrivateBalance(
             address(verifier),
+            address(poseidon2),
             mpcAdress,
             mpc_pk1,
             mpc_pk2,

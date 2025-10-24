@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
-import {Poseidon2T2} from "./poseidon2.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
 
 interface IGroth16Verifier {
@@ -14,11 +13,20 @@ interface IGroth16Verifier {
     ) external view returns (bool);
 }
 
+interface Poseidon2T2_BN254 {
+    function compress(
+        uint256[2] memory inputs,
+        uint256 domain_sep
+    ) external pure returns (uint256);
+}
+
 contract PrivateBalance {
     using QueryMapLib for QueryMap;
 
     // The groth16 verifier contract
     IGroth16Verifier public immutable verifier;
+    // The poseidon2 contract
+    Poseidon2T2_BN254 public immutable poseidon2;
 
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
@@ -37,6 +45,9 @@ contract PrivateBalance {
     // Stores the secret shares of the amount and randomness for a transfer
     mapping(uint256 => Ciphertext) private shares;
 
+    // BN254 prime field
+    uint256 constant PRIME =
+        0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
     // Batch size for processing actions
     uint private constant BATCH_SIZE = 96;
     // Commitment to zero balance commit(0, 0)
@@ -65,6 +76,7 @@ contract PrivateBalance {
 
     constructor(
         address _verifierAddress,
+        address _poseidon2Address,
         address _mpcAdress,
         BabyJubJubElement memory _mpc_pk1,
         BabyJubJubElement memory _mpc_pk2,
@@ -85,6 +97,7 @@ contract PrivateBalance {
         }
 
         verifier = IGroth16Verifier(_verifierAddress);
+        poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(
             Action.Dummy,
@@ -154,14 +167,14 @@ contract PrivateBalance {
     function commit(
         uint256 input,
         uint256 randomness
-    ) public pure returns (uint256) {
-        if (input >= Poseidon2T2.PRIME) {
+    ) public view returns (uint256) {
+        if (input >= PRIME) {
             revert NotInPrimeField();
         }
-        if (randomness >= Poseidon2T2.PRIME) {
+        if (randomness >= PRIME) {
             revert NotInPrimeField();
         }
-        return Poseidon2T2.compress([input, randomness]);
+        return poseidon2.compress([input, randomness], 0xDEADBEEF);
     }
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
@@ -221,7 +234,7 @@ contract PrivateBalance {
     ) public returns (uint256) {
         address sender = msg.sender;
         // Amount is just a commitment here
-        if (amount >= Poseidon2T2.PRIME) {
+        if (amount >= PRIME) {
             revert NotInPrimeField();
         }
         if (sender == receiver) {
@@ -235,12 +248,12 @@ contract PrivateBalance {
             revert NotOnCurve();
         }
 
-        if (ciphertext.amount[0] >= Poseidon2T2.PRIME) revert NotInPrimeField();
-        if (ciphertext.amount[1] >= Poseidon2T2.PRIME) revert NotInPrimeField();
-        if (ciphertext.amount[2] >= Poseidon2T2.PRIME) revert NotInPrimeField();
-        if (ciphertext.r[0] >= Poseidon2T2.PRIME) revert NotInPrimeField();
-        if (ciphertext.r[1] >= Poseidon2T2.PRIME) revert NotInPrimeField();
-        if (ciphertext.r[2] >= Poseidon2T2.PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[0] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[1] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[2] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.r[0] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.r[1] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.r[2] >= PRIME) revert NotInPrimeField();
 
         ActionQuery memory aq = ActionQuery(
             Action.Transfer,
@@ -396,19 +409,13 @@ contract PrivateBalance {
         uint256 y
     ) public pure returns (bool) {
         if (x == 0 && y == 1) return true;
-        if (x >= Poseidon2T2.PRIME || y >= Poseidon2T2.PRIME) return false;
+        if (x >= PRIME || y >= PRIME) return false;
 
-        uint256 xx = mulmod(x, x, Poseidon2T2.PRIME);
-        uint256 yy = mulmod(y, y, Poseidon2T2.PRIME);
-        uint256 axx = mulmod(A, xx, Poseidon2T2.PRIME);
-        uint256 dxxyy = mulmod(
-            D,
-            mulmod(xx, yy, Poseidon2T2.PRIME),
-            Poseidon2T2.PRIME
-        );
+        uint256 xx = mulmod(x, x, PRIME);
+        uint256 yy = mulmod(y, y, PRIME);
+        uint256 axx = mulmod(A, xx, PRIME);
+        uint256 dxxyy = mulmod(D, mulmod(xx, yy, PRIME), PRIME);
 
-        return
-            addmod(axx, yy, Poseidon2T2.PRIME) ==
-            addmod(1, dxxyy, Poseidon2T2.PRIME);
+        return addmod(axx, yy, PRIME) == addmod(1, dxxyy, PRIME);
     }
 }
