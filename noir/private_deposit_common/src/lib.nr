@@ -123,7 +123,8 @@ pub fn transaction_for_batch(
     let (receiver_old_commitment, receiver_new_commitment) =
         deposit_inner(receiver_old_balance, receiver_old_r, amount, receiver_new_r);
 
-    let combined_valid = combine_two_range_checks(amount_valid, sender_new_valid);
+    // Combine and make 0 the valid case
+    let combined_valid = 1 - combine_two_range_checks(amount_valid, sender_new_valid);
     (
         sender_old_commitment, sender_new_commitment, receiver_old_commitment,
         receiver_new_commitment, amount_commitment, combined_valid,
