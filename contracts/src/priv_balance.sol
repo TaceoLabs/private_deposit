@@ -386,7 +386,7 @@ contract PrivateBalance {
     function read_queue()
         public
         view
-        returns (uint256[] memory, ActionQuery[] memory)
+        returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory)
     {
         uint256 size = action_queue.map_size() - 1; // Exclude dummy
         if (size > BATCH_SIZE) {
@@ -394,13 +394,17 @@ contract PrivateBalance {
         }
         ActionQuery[] memory actions = new ActionQuery[](size);
         uint256[] memory keys = new uint256[](size);
+        Ciphertext[] memory cts = new Ciphertext[](size);
 
         Iterator it = action_queue.iterateStart();
         for (uint256 i = 0; i < size; i++) {
             it = action_queue.iterateNext(it); // Doing it here already skips dummy at index 0
             (keys[i], actions[i]) = action_queue.iterateGet(it);
+            if (actions[i].action == Action.Transfer) {
+                cts[i] = shares[keys[i]];
+            }
         }
-        return (keys, actions);
+        return (keys, actions, cts);
     }
 
     // Check if point is on curve: a*x^2 + y^2 = 1 + d*x^2*y^2
