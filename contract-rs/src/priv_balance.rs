@@ -64,7 +64,7 @@ impl PrivateBalanceContract {
     pub fn encrypt_shares<R: Rng + CryptoRng>(
         amount_shares: [F; 3],
         rand_shares: [F; 3],
-        mpc_pk: [ark_babyjubjub::EdwardsAffine; 3],
+        mpc_pk: &[ark_babyjubjub::EdwardsAffine; 3],
         rng: &mut R,
     ) -> Ciphertext {
         let sk = ark_babyjubjub::Fr::rand(rng);
@@ -247,15 +247,16 @@ impl PrivateBalanceContract {
         Ok([key1, key2, key3])
     }
 
-    pub async fn transfer(&self, to: F, amount: F, ciphertext: Ciphertext) -> eyre::Result<TxHash> {
+    pub async fn transfer(
+        &self,
+        to: Address,
+        amount: F,
+        ciphertext: Ciphertext,
+    ) -> eyre::Result<TxHash> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
-            .transfer(
-                crate::field_to_address(to)?,
-                crate::field_to_u256(amount),
-                ciphertext,
-            )
+            .transfer(to, crate::field_to_u256(amount), ciphertext)
             .send()
             .await
             .context("while broadcasting to network")?

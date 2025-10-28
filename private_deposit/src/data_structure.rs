@@ -75,6 +75,14 @@ where
         self.inner
     }
 
+    pub fn inner(&self) -> &HashMap<K, V> {
+        &self.inner
+    }
+
+    pub fn inner_mut(&mut self) -> &mut HashMap<K, V> {
+        &mut self.inner
+    }
+
     pub fn len(&self) -> usize {
         self.inner.len()
     }
