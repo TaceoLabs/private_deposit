@@ -14,16 +14,24 @@ use mpc_core::protocols::rep3::id::PartyID;
 use mpc_core::protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State};
 use mpc_core::protocols::rep3_ring::ring::bit::Bit;
 use mpc_core::protocols::rep3_ring::{self, Rep3RingShare};
+use mpc_core::serde_compat::{ark_de, ark_se};
 use mpc_net::Network;
 use std::thread;
 
 use super::Curve;
 use super::F;
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Action<K> {
     Invalid,
-    Deposit(K, F),                                                  // Receiver, amount
-    Withdraw(K, F),                                                 // Sender, amount
+    Deposit(
+        K,
+        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")] F,
+    ), // Receiver, amount
+    Withdraw(
+        K,
+        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")] F,
+    ), // Sender, amount
     Transfer(K, K, Rep3PrimeFieldShare<F>, Rep3PrimeFieldShare<F>), // Sender, Receiver, amount, amount_blinding
     Dummy,
 }
