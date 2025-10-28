@@ -23,7 +23,7 @@ use super::Curve;
 use super::F;
 
 // From the Noir circuits
-pub const NUM_TRANSACTIONS: usize = 96;
+pub const NUM_TRANSACTIONS: usize = 50;
 pub const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
 
 #[derive(Clone, Debug, Default)]

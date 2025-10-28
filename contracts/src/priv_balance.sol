@@ -9,7 +9,7 @@ interface IGroth16Verifier {
         uint[2] calldata _pA,
         uint[2][2] calldata _pB,
         uint[2] calldata _pC,
-        uint[480] calldata _pubSignals
+        uint[250] calldata _pubSignals
     ) external view returns (bool);
 }
 
@@ -49,7 +49,7 @@ contract PrivateBalance {
     uint256 constant PRIME =
         0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
     // Batch size for processing actions
-    uint private constant BATCH_SIZE = 96;
+    uint private constant BATCH_SIZE = 50;
     // Commitment to zero balance commit(0, 0)
     uint private constant ZERO_COMMITMENT =
         0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;

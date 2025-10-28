@@ -1,6 +1,6 @@
 // Compile with: nargo compile --expression-width=1000 --bounded-codegen
 
-global NUM_TRANSACTIONS: u32 = 96;
+global NUM_TRANSACTIONS: u32 = 50;
 
 pub struct TransactionInput {
     sender_old_balance: Field,

@@ -389,13 +389,13 @@
         "components": [
           {
             "name": "action_index",
-            "type": "uint256[96]",
-            "internalType": "uint256[96]"
+            "type": "uint256[50]",
+            "internalType": "uint256[50]"
           },
           {
             "name": "commitments",
-            "type": "uint256[192]",
-            "internalType": "uint256[192]"
+            "type": "uint256[100]",
+            "internalType": "uint256[100]"
           }
         ]
       },

@@ -132,7 +132,7 @@ impl TryFrom<TransactionInputRust> for TransactionInput {
     type Error = eyre::Error;
 
     fn try_from(input: TransactionInputRust) -> eyre::Result<Self> {
-        const BATCH_SIZE: usize = 96;
+        const BATCH_SIZE: usize = 50;
         if input.action_index.len() != BATCH_SIZE || input.commitment.len() != BATCH_SIZE * 2 {
             eyre::bail!("Invalid input lengths");
         }

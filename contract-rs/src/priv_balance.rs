@@ -331,7 +331,7 @@ impl PrivateBalanceContract {
     pub async fn read_queue(
         &self,
     ) -> eyre::Result<(Vec<usize>, Vec<ActionQuery>, Vec<Ciphertext>)> {
-        const BATCH_SIZE: usize = 96;
+        const BATCH_SIZE: usize = 50;
 
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
         let res = contract
