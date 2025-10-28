@@ -330,12 +330,11 @@ impl PrivateBalanceContract {
 
     pub async fn read_queue(
         &self,
+        num_items: usize,
     ) -> eyre::Result<(Vec<usize>, Vec<ActionQuery>, Vec<Ciphertext>)> {
-        const BATCH_SIZE: usize = 50;
-
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
         let res = contract
-            .read_queue()
+            .read_queue(crate::usize_to_u256(num_items))
             .call()
             .await
             .context("while calling get_action_at_index")?;
@@ -345,9 +344,6 @@ impl PrivateBalanceContract {
         }
         if res._0.len() != res._2.len() {
             eyre::bail!("mismatched lengths in read_queue");
-        }
-        if res._0.len() > BATCH_SIZE {
-            eyre::bail!("too many entries in read_queue");
         }
 
         let indices = res

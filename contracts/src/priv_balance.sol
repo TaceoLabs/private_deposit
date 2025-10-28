@@ -384,21 +384,23 @@ contract PrivateBalance {
         }
     }
 
-    function read_queue()
+    function read_queue(
+        uint256 num_items
+    )
         public
         view
         returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory)
     {
         uint256 size = action_queue.map_size() - 1; // Exclude dummy
-        if (size > BATCH_SIZE) {
-            size = BATCH_SIZE;
+        if (num_items > size) {
+            num_items = size;
         }
-        ActionQuery[] memory actions = new ActionQuery[](size);
-        uint256[] memory keys = new uint256[](size);
-        Ciphertext[] memory cts = new Ciphertext[](size);
+        ActionQuery[] memory actions = new ActionQuery[](num_items);
+        uint256[] memory keys = new uint256[](num_items);
+        Ciphertext[] memory cts = new Ciphertext[](num_items);
 
         Iterator it = action_queue.iterateStart();
-        for (uint256 i = 0; i < size; i++) {
+        for (uint256 i = 0; i < num_items; i++) {
             it = action_queue.iterateNext(it); // Doing it here already skips dummy at index 0
             (keys[i], actions[i]) = action_queue.iterateGet(it);
             if (actions[i].action == Action.Transfer) {

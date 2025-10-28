@@ -428,7 +428,13 @@
   {
     "type": "function",
     "name": "read_queue",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "num_items",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
       {
         "name": "",
