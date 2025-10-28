@@ -133,11 +133,6 @@ impl<K, F: PrimeField> PrivateDeposit<K, DepositValueShare<F>>
 where
     K: std::hash::Hash + Eq,
 {
-    // Returns the current deposit value for the given key
-    pub fn read(&self, key: &K) -> Option<&DepositValueShare<F>> {
-        self.get(key)
-    }
-
     // Returns the old and the new deposit value for the given key
     pub fn deposit(
         &mut self,
@@ -145,16 +140,8 @@ where
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
     ) -> (Option<DepositValueShare<F>>, DepositValueShare<F>) {
-        let old = self.read(&key).cloned();
         let new_blinding = rep3::arithmetic::rand(rep3_state);
-        let new_value = if let Some(old_value) = &old {
-            old_value.amount + amount
-        } else {
-            amount
-        };
-        let new = DepositValue::new(new_value, new_blinding);
-        self.insert(key, new.clone());
-        (old, new)
+        self.deposit_with_blinding(key, amount, new_blinding)
     }
 
     // Returns the old and the new balance value for the given key
@@ -164,16 +151,8 @@ where
         amount: Rep3PrimeFieldShare<F>,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<(DepositValueShare<F>, DepositValueShare<F>)> {
-        let old = self.get(&key);
-        if old.is_none() {
-            return Err(eyre::eyre!("Key not found in HashMap"));
-        }
-        let old = old.unwrap().clone();
-        let new_amount = old.amount - amount;
         let new_blinding = rep3::arithmetic::rand(rep3_state);
-        let new = DepositValue::new(new_amount, new_blinding);
-        self.insert(key, new.clone());
-        Ok((old, new))
+        self.withdraw_with_blinding(key, amount, new_blinding)
     }
 
     #[expect(clippy::type_complexity)]
@@ -190,8 +169,87 @@ where
         Option<DepositValueShare<F>>,
         DepositValueShare<F>,
     )> {
-        let (sender_old, sender_new) = self.withdraw(sender, amount, rep3_state)?;
-        let (receiver_old, receiver_new) = self.deposit(receiver, amount, rep3_state);
+        let sender_new_blinding = rep3::arithmetic::rand(rep3_state);
+        let receiver_new_blinding = rep3::arithmetic::rand(rep3_state);
+        self.transaction_with_blinding(
+            sender,
+            receiver,
+            amount,
+            sender_new_blinding,
+            receiver_new_blinding,
+        )
+    }
+}
+
+impl<K, V> PrivateDeposit<K, DepositValue<V>>
+where
+    K: std::hash::Hash + Eq,
+    V: CanonicalDeserialize
+        + CanonicalSerialize
+        + Clone
+        + std::ops::Add<V, Output = V>
+        + std::ops::Sub<V, Output = V>,
+{
+    // Returns the current deposit value for the given key
+    pub fn read(&self, key: &K) -> Option<&DepositValue<V>> {
+        self.get(key)
+    }
+
+    // Returns the old and the new deposit value for the given key
+    pub fn deposit_with_blinding(
+        &mut self,
+        key: K,
+        amount: V,
+        new_blinding: V,
+    ) -> (Option<DepositValue<V>>, DepositValue<V>) {
+        let old = self.read(&key).cloned();
+        let new_value = if let Some(old_value) = &old {
+            old_value.amount.to_owned() + amount
+        } else {
+            amount
+        };
+        let new = DepositValue::new(new_value, new_blinding);
+        self.insert(key, new.clone());
+        (old, new)
+    }
+
+    // Returns the old and the new balance value for the given key
+    pub fn withdraw_with_blinding(
+        &mut self,
+        key: K,
+        amount: V,
+        new_blinding: V,
+    ) -> eyre::Result<(DepositValue<V>, DepositValue<V>)> {
+        let old = self.get(&key);
+        if old.is_none() {
+            return Err(eyre::eyre!("Key not found in HashMap"));
+        }
+        let old = old.unwrap().clone();
+        let new_amount = old.amount.to_owned() - amount;
+        let new = DepositValue::new(new_amount, new_blinding);
+        self.insert(key, new.clone());
+        Ok((old, new))
+    }
+
+    #[expect(clippy::type_complexity)]
+    // Returns (sender_old, sender_new, receiver_old, receiver_new) which are the old and new deposit values for sender and receiver
+    pub fn transaction_with_blinding(
+        &mut self,
+        sender: K,
+        receiver: K,
+        amount: V,
+        sender_new_blinding: V,
+        receiver_new_blinding: V,
+    ) -> eyre::Result<(
+        DepositValue<V>,
+        DepositValue<V>,
+        Option<DepositValue<V>>,
+        DepositValue<V>,
+    )> {
+        let (sender_old, sender_new) =
+            self.withdraw_with_blinding(sender, amount.to_owned(), sender_new_blinding)?;
+        let (receiver_old, receiver_new) =
+            self.deposit_with_blinding(receiver, amount, receiver_new_blinding);
 
         Ok((sender_old, sender_new, receiver_old, receiver_new))
     }
