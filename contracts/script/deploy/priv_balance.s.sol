@@ -24,18 +24,17 @@ contract PrivateBalanceScript is Script {
             2321884067052636057092005455746434955998482736918020414679439547948463777586
         );
 
-    address mpcAdress = address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
-
     function setUp() public {}
 
     function run() public {
         address verifier = vm.envAddress("VERIFIER_ADDRESS");
         address poseidon2 = vm.envAddress("POSEIDON2_ADDRESS");
+        address mpcAdress = vm.envAddress("MPC_ADDRESS");
 
         vm.startBroadcast();
         priv_balance = new PrivateBalance(
-            address(verifier),
-            address(poseidon2),
+            verifier,
+            poseidon2,
             mpcAdress,
             mpc_pk1,
             mpc_pk2,

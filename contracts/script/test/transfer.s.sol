@@ -7,8 +7,6 @@ import {PrivateBalance} from "../../src/priv_balance.sol";
 contract PrivateBalanceScript is Script {
     PrivateBalance public priv_balance;
 
-    address bob = address(0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC);
-
     uint256 amount = 1 ether;
     uint256 amount_commitment =
         6122001814780532967242228952635820560915594353320782112285831468616175141938;
@@ -48,6 +46,8 @@ contract PrivateBalanceScript is Script {
     }
 
     function run() public {
+        address bob = vm.envAddress("BOB_ADDRESS");
+
         vm.startBroadcast();
         uint256 index = priv_balance.transfer(
             bob,
