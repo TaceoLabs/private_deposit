@@ -16,7 +16,7 @@ use noirc_artifacts::program::ProgramArtifact;
 use super::Curve;
 use super::F;
 
-pub(super) const NUM_TRANSACTION_COMMITMENTS: usize = 5;
+pub const NUM_TRANSACTION_COMMITMENTS: usize = 5;
 
 impl<K> PrivateDeposit<K, DepositValueShare<F>>
 where

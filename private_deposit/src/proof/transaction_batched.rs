@@ -23,8 +23,8 @@ use super::Curve;
 use super::F;
 
 // From the Noir circuits
-pub(super) const NUM_TRANSACTIONS: usize = 96;
-pub(super) const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
+pub const NUM_TRANSACTIONS: usize = 96;
+pub const NUM_COMMITMENTS: usize = NUM_TRANSACTIONS * NUM_TRANSACTION_COMMITMENTS;
 
 #[derive(Clone, Debug, Default)]
 pub struct TransactionInput<K, F> {

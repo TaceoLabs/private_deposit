@@ -21,7 +21,7 @@ use std::thread;
 use super::Curve;
 use super::F;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum Action<K> {
     Invalid,
     Deposit(
