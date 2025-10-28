@@ -41,6 +41,8 @@ contract PrivateBalance {
 
     // Stores the actions which are not yet processed
     QueryMap public action_queue;
+    // Current index for inserting new actions
+    uint256 next_action_queue_index;
 
     // Stores the secret shares of the amount and randomness for a transfer
     mapping(uint256 => Ciphertext) private shares;
@@ -106,6 +108,7 @@ contract PrivateBalance {
             0
         );
         action_queue.insert(0, aq); // Dummy action at index 0
+        next_action_queue_index = 1;
     }
 
     struct BabyJubJubElement {
@@ -131,11 +134,9 @@ contract PrivateBalance {
         uint256[BATCH_SIZE * 2] commitments; // Consists of new_commitments of sender/receiver balances, remaining commitments are read from smart contract
     }
 
-    function getNextFreeQueueIndex() internal view returns (uint256) {
-        uint256 index = 0;
-        while (action_queue.contains(index)) {
-            index++;
-        }
+    function getNextFreeQueueIndex() internal returns (uint256) {
+        uint256 index = next_action_queue_index;
+        next_action_queue_index = next_action_queue_index + 1;
         return index;
     }
 
