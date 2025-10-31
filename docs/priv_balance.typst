@@ -352,7 +352,7 @@ Note that if the proof does not verify, the MPC network needs to roll back the t
   caption: [The protocol for withdrawing tokens.],
 )<scheme:transfer>
 
-= MPC Benchmarks
+= Benchmarks
 
 In this section we give some benchmarks of our currently implemented prototype. In all the benchmarks we use the 3-party replicated secret sharing protocol @ABY3. As commitments we use hash-based commitments using the Poseidon2 hash function @Poseidon2. Concretely, we use Poseidon2 with an internal statesize of $t=2$ in feed-forward mode of operation. In other words, a commitment to $x$ with randomness $r$ is computed as $C = mono("Poseidon2.permute")(x + d, r)[0] + x$, where $d$ is a domain separator. We use the Noir#footnote[https://noir-lang.org/] language to write the ZK circuits, use a compiler#footnote[https://github.com/TaceoLabs/CoNoir-to-R1CS] to translate it to an R1CS system and use Co-Circom#footnote[https://github.com/TaceoLabs/co-snarks/tree/main/co-circom] to create a Groth16 @Groth16 proof in MPC. Thereby, Groth16 is instantiated over the BN254 pairing friendly curve.
 
@@ -453,6 +453,30 @@ Notice that multithreading has a profound effect on the performance. A batch of 
 Notice, that there is not much difference between the runtime of the witness extension (`WitExt`) in the two different machine setups. We believe that the small difference is mostly due to the larger network bandwidth of the m7a.24xlarge instances, and that the performance of the witness extension is mostly network bound.
 
 Proof generation, on the other hand, is clearly CPU bound, where the increase of number of CPUs from 16 to 96 improves performance by more than two-fold.
+
+== Solidity Gas Costs
+
+To demonstrate the feasibility of our approach, we implement a small soldity smart contract with the capabilites described in this paper. When deployed, a client can register deposits, withdraws, and transfers on chain which gets stored in an action queue. An MPC network queries this queue and processes a batch of transactions at a time. Once done, the MPC network posts the ZK proof and the transactions are counted as fulfilled. In this implementation, client-to-MPC-network communication (i.e., sending over the secret shared amount and randomness for a transfer) is done via the smart contract by adding ciphertexts of the shares to the action queue when registering a transfer.
+
+In @table:gas_base_testnet we give the gas costs of each the 4 main solidity functions (`deposit`, `withdraw`, `transfer` for the client and `processMPC` for the MPC network) when executed on the Base Sepolia testnet.#footnote[A sample deployment where each function is executed once can be found here: https://sepolia.basescan.org/address/0xf55dfe8242ec117f44acd932adb5c233b582a04a.] In this table, `processMPC` is implemented to process a batch of 50 transactions per proof. We further give the gas cost in GWEI assuming a gas price of $0.017$ GWEI.#footnote[Taken from https://basescan.org/gastracker for Base mainnet at the time of writing.]
+
+#figure(
+  table(
+    stroke: none,
+    columns: 3,
+    table.hline(),
+    align: right,
+    [Function], [Gas], [Gas cost [GWEI]],
+    table.hline(),
+    [`Deposit`], [150869], [2564.773],
+    [`Withdraw`], [136838], [2326.246],
+    [`Transfer`], [336856], [5726.552],
+    [`ProcessMPC (50)`], [3311538], [56296.146],
+    table.hline(),
+  ),
+  caption: [Amount of gas used when deployed on Base Sepolia Testnet and gas price assuming a cost of $0.017$ GWEI.],
+) <table:gas_base_testnet>
+
 
 = Issues and Future Work
 
