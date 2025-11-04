@@ -328,6 +328,63 @@ impl PrivateBalanceContract {
         Ok(tx_hash)
     }
 
+    pub async fn withelist_addresses_for_demo(
+        &self,
+        addresses: Vec<Address>,
+    ) -> eyre::Result<TxHash> {
+        let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
+
+        let pending_tx = contract
+            .whitelistForDemo(addresses)
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .register()
+            .await
+            .context("while registering watcher for whitelist")?;
+
+        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
+            .await
+            .context("while waiting for receipt")?;
+        if receipt.status() {
+            tracing::info!("whitelist done with transaction hash: {tx_hash}",);
+        } else {
+            eyre::bail!("cannot finish transaction: {receipt:?}");
+        }
+
+        Ok(tx_hash)
+    }
+
+    pub async fn set_balances_for_demo(
+        &self,
+        addresses: Vec<Address>,
+        balances: Vec<U256>,
+        total_balances_amount: F,
+    ) -> eyre::Result<TxHash> {
+        let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
+
+        let pending_tx = contract
+            .setBalancesForDemo(addresses, balances)
+            .value(crate::field_to_u256(total_balances_amount))
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .register()
+            .await
+            .context("while registering watcher for set_balance")?;
+
+        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
+            .await
+            .context("while waiting for receipt")?;
+        if receipt.status() {
+            tracing::info!("set_balance done with transaction hash: {tx_hash}",);
+        } else {
+            eyre::bail!("cannot finish transaction: {receipt:?}");
+        }
+
+        Ok(tx_hash)
+    }
+
     pub async fn read_queue(
         &self,
         num_items: usize,
