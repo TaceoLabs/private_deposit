@@ -67,6 +67,11 @@
             "internalType": "uint256"
           }
         ]
+      },
+      {
+        "name": "_allow_all",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "nonpayable"
@@ -149,6 +154,25 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "demo_whitelist",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -527,6 +551,24 @@
   },
   {
     "type": "function",
+    "name": "setBalancesForDemo",
+    "inputs": [
+      {
+        "name": "addresses",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "commitments",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
     "name": "transfer",
     "inputs": [
       {
@@ -598,6 +640,19 @@
   },
   {
     "type": "function",
+    "name": "whitelistForDemo",
+    "inputs": [
+      {
+        "name": "addresses",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "withdraw",
     "inputs": [
       {
@@ -633,6 +688,11 @@
   {
     "type": "error",
     "name": "InvalidMpcAction",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidParameters",
     "inputs": []
   },
   {

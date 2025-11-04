@@ -2,7 +2,13 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
-import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
+import {
+    Action,
+    ActionQuery,
+    QueryMap,
+    QueryMapLib,
+    Iterator
+} from "./action_queue.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -47,6 +53,10 @@ contract PrivateBalance {
     // Stores the secret shares of the amount and randomness for a transfer
     mapping(uint256 => Ciphertext) private shares;
 
+    // For the demo we only allow a list of certain addresses to interact with the contract. We can however also instantiate it to allow everyone using the allow_all flag.
+    mapping(address => bool) public demo_whitelist;
+    bool allow_all;
+
     // BN254 prime field
     uint256 constant PRIME =
         0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
@@ -70,9 +80,19 @@ contract PrivateBalance {
     error CannotRemoveDummyAction();
     error InvalidCommitment();
     error NotOnCurve();
+    error InvalidParameters();
 
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
+        _;
+    }
+
+    modifier demoWhitelist() {
+        if (!allow_all) {
+            if (!demo_whitelist[msg.sender]) {
+                revert Unauthorized();
+            }
+        }
         _;
     }
 
@@ -82,11 +102,13 @@ contract PrivateBalance {
         address _mpcAdress,
         BabyJubJubElement memory _mpc_pk1,
         BabyJubJubElement memory _mpc_pk2,
-        BabyJubJubElement memory _mpc_pk3
+        BabyJubJubElement memory _mpc_pk3,
+        bool _allow_all
     ) {
         mpc_pk1 = _mpc_pk1;
         mpc_pk2 = _mpc_pk2;
         mpc_pk3 = _mpc_pk3;
+        allow_all = _allow_all;
 
         if (!isOnBabyJubJubCurve(_mpc_pk1.x, _mpc_pk1.y)) {
             revert NotOnCurve();
@@ -132,6 +154,30 @@ contract PrivateBalance {
     struct TransactionInput {
         uint256[BATCH_SIZE] action_index;
         uint256[BATCH_SIZE * 2] commitments; // Consists of new_commitments of sender/receiver balances, remaining commitments are read from smart contract
+    }
+
+    function whitelistForDemo(address[] calldata addresses) public onlyMPC {
+        for (uint i = 0; i < addresses.length; i++) {
+            demo_whitelist[addresses[i]] = true;
+        }
+    }
+
+    // This initializes the mapping for demo purposes so that we do not need to deposit for each user. This simplifies the demo setup such that we do not need to give each wallet some funds to call deposit().
+    // It is intended that during this function call the setup party of the demo deposits enough funds to the contract to back these balances.
+    function setBalancesForDemo(
+        address[] calldata addresses,
+        uint256[] calldata commitments
+    ) public payable onlyMPC {
+        if (addresses.length != commitments.length) {
+            revert InvalidParameters();
+        }
+
+        for (uint i = 0; i < addresses.length; i++) {
+            if (commitments[i] >= PRIME) {
+                revert NotInPrimeField();
+            }
+            balanceCommitments[addresses[i]] = commitments[i];
+        }
     }
 
     function getNextFreeQueueIndex() internal returns (uint256) {
@@ -184,7 +230,7 @@ contract PrivateBalance {
         payable(mpcAdress).transfer(address(this).balance);
     }
 
-    function deposit() public payable returns (uint256) {
+    function deposit() public payable demoWhitelist returns (uint256) {
         address receiver = msg.sender;
         uint256 amount = msg.value;
         // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
@@ -206,7 +252,7 @@ contract PrivateBalance {
         return index;
     }
 
-    function withdraw(uint256 amount) public returns (uint256) {
+    function withdraw(uint256 amount) public demoWhitelist returns (uint256) {
         address sender = msg.sender;
         // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
         if (amount > 0xFFFFFFFFFFFFFFFFFFFF) {
@@ -232,7 +278,7 @@ contract PrivateBalance {
         address receiver,
         uint256 amount,
         Ciphertext calldata ciphertext
-    ) public returns (uint256) {
+    ) public demoWhitelist returns (uint256) {
         address sender = msg.sender;
         // Amount is just a commitment here
         if (amount >= PRIME) {

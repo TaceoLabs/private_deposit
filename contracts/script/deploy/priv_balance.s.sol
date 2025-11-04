@@ -38,7 +38,8 @@ contract PrivateBalanceScript is Script {
             mpcAdress,
             mpc_pk1,
             mpc_pk2,
-            mpc_pk3
+            mpc_pk3,
+            true
         );
         vm.stopBroadcast();
 
