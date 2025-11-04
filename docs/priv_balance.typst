@@ -3,15 +3,15 @@
 #import "@preview/frame-it:1.2.0": *
 #import "@preview/dashy-todo:0.1.0": todo
 
-#let inst_taceo = institute("TACEO", email: "walch@taceo.io");
+#let inst_taceo = institute("TACEO", email: "papers@taceo.io");
 
 #let authors = (
   author("Roman Walch", insts: inst_taceo),
 )
 
-#let title = "Verifiable Private Balance Contract"
-#let abstract = "In this paper we describe how to build a private token contract with MPC and collaborative SNARKs. This smart contract hides the balances of users, as well as transaction amounts when sending tokens to other participants by only showing commitments publicly. The actual balances corresponding to these commitments are stored -- as secret shares -- on an MPC network, which performs the necessary computations privately in MPC. The addition of the collaborative SNARK adds verifiability to the system, proving that only valid state transitions are preformed and enough funds are present for each transaction. Our system currently achieves a throughput of 200 transactions per second (including proof generation) on reasonable MPC hardware."
-#let keywords = ("MPC", "ZKP", "CoSNARKs", "Private Token")
+#let title = "Verifiable Confidential Token Contract"
+#let abstract = "In this paper we describe how to build a confidential token contract with MPC and collaborative SNARKs. This smart contract hides the balances of users, as well as transaction amounts when sending tokens to other participants by only showing commitments publicly. The actual balances corresponding to these commitments are stored -- as secret shares -- on an MPC network, which performs the necessary computations privately in MPC. The addition of the collaborative SNARK adds verifiability to the system, proving that only valid state transitions are preformed and enough funds are present for each transaction. Our system currently achieves a throughput of 200 transactions per second (including proof generation) on reasonable MPC hardware."
+#let keywords = ("MPC", "ZKP", "CoSNARKs", "Confidential Token")
 
 #show: report.with(
   title: title,
@@ -37,7 +37,7 @@
 
 = Introduction
 
-Privacy preserving cryptographic protocols and primitives such as secure multiparty computation (MPC) @Yao82b, fully homomorphic encryption (FHE) @Gentry09 and zero-knowledge proofs (ZKP) have been heavily improved in the recent years and become more feasible to apply to real world use cases every day. In this document we investigate the application of these protocols, more concretely MPC, ZKPs and their intersection, dubbed collaborative SNARKs (CoSNARKs) @CoSNARKs, to the use case of private on-chain payments. Concretely, we investigate the case of confidential and verifiable on-chain token balances. There, the goal is to add privacy to an existing token (which can for example be ETH, or a stable coin such as USDCS), by adding a smart contract which stores balances to users privately, e.g., by holding cryptographic commitments or (homomorphic) ciphertexts of the balances. Then, when users transfer money amongst each other, the commitments or ciphertexts are updated accordingly, while zero knowledge proofs prove that 1) the sender has enough balance and 2) the commitments where updated correctly. In this way, the current balance of the involved users, as well as the transferred amount, stay private while everyone can verify the computations were done correctly.
+Privacy preserving cryptographic protocols and primitives such as secure multiparty computation (MPC) @Yao82b, fully homomorphic encryption (FHE) @Gentry09 and zero-knowledge proofs (ZKP) have been heavily improved in the recent years and become more feasible to apply to real world use cases every day. In this document we investigate the application of these protocols, more concretely MPC, ZKPs and their intersection, dubbed collaborative SNARKs (CoSNARKs) @CoSNARKs, to the use case of private on-chain payments. Concretely, we investigate the case of confidential and verifiable on-chain token balances. There, the goal is to add privacy to an existing token (which can for example be ETH, or a stable coin such as USDC), by adding a smart contract which stores balances of users privately, e.g., by holding cryptographic commitments or (homomorphic) ciphertexts of the balances. Then, when users transfer tokens amongst each other, the commitments or ciphertexts are updated accordingly, while zero knowledge proofs prove that 1) the sender has enough balance and 2) the commitments were updated correctly. In this way, the current balance of the involved users, as well as the transferred amount, stay private while everyone can verify the computations were done correctly.
 
 The users should also be able to deposit fresh tokens to its private on-chain balance, and withdraw them (if enough funds are present). To this end, when the user deposits some tokens into the smart contract, the smart contract keeps it alongside all other deposited tokens in a pool. Furthermore, when the user withdraws funds, the smart contract pays out tokens from this pool. Thus, the amount of tokens in this pool should always match the total balance of all users in the system.
 
@@ -45,15 +45,15 @@ The users should also be able to deposit fresh tokens to its private on-chain ba
 
 Private onchain payments have seen many different approaches in the literature, which we review here shortly.
 
-First, approaches based purely on ZKPs have been studied and deployed in practice (e.g., Zexe @ZEXE, Zcash#footnote[https://z.cash/]). The main approach here is that whenever parties want to transact privately, they create a so-called note which can only be decrypted and spent by a dedicated receiver. Due to employing commitments and ZK proofs, on-chain data does not leak any information on the balances and transaction amounts stays hidden. When a party spents a note, it releases a nullifier, which prevents the note from being spent a second time again. The main drawback of these systems, however, is that users do not get to know that they received some notes without constantly scanning and trying to decrypt all notes to determine which belong to themselves.
+First, approaches based purely on ZKPs have been studied and deployed in practice (e.g., Zexe @ZEXE, Zcash#footnote[https://z.cash/]). The main approach here is that whenever parties want to transact privately, they create a so-called note which can only be decrypted and spent by a dedicated receiver. Due to employing commitments and ZK proofs, on-chain data does not leak any information on the balances and transaction amounts stays hidden. When a party spents a note, it releases a nullifier, which prevents the note from being spent a second time. The main drawback of these systems, however, is that users do not get to know that they received some notes without constantly scanning and trying to decrypt all notes to determine which belong to themselves.
 
-The possibility to store and modify encrypted data (as given by FHE and MPC) allows a third party to store the actual balances in encrypted form without leaking the actual data. On request, the third party opens the balance to be viewed by a user, mitigating this note discovery problem. While we propose an MPC based solution in this document, solutions based on homomorphic encryption where already proposed, which we discuss in the following.
+The possibility to store and modify encrypted data (as given by FHE and MPC) allows a third party to store the actual balances in encrypted form without leaking the actual data. On request, the third party opens the balance to be viewed by a user, mitigating this note discovery problem. While we propose an MPC based solution in this document, solutions based on homomorphic encryption were already proposed, which we discuss in the following paragraph.
 
-The main idea in HE-based solutions is that one server holds a ciphertexts of each users balances, while the corresponding decryption key is secret shared amongst an MPC network. To read balances, a client requests a decryption from the MPC network, which engages in a MPC protocol (e.g., as proposed in @tFHE) to output the balance in plain to the user. When requesting a transfer, the client sends ciphertexts to the server holding the balance, which can modify the current balances accordingly. Assuming the ciphertexts are well-formed, the whole protocol is public-transcript. In other words, clients can redo computations and challenge the server if it performed faulty computation, leading to an optimistic verifiability property. To this end, clients should provide a zero knowledge proof, proving that the ciphertexts they send are well-formed.
+The main idea in HE-based solutions is that one server holds a ciphertexts of each users balances, while the corresponding decryption key is secret shared amongst an MPC network. To read balances, a client requests a decryption from the MPC network, which engages in a MPC protocol (e.g., as proposed in @tFHE) to output the balance in plaintext to the user. When requesting a transfer, the client sends ciphertexts to the server holding the balance, which can modify the current balances accordingly. Assuming the ciphertexts are well-formed, the whole protocol is public-transcript. In other words, clients can redo computations and challenge the server if it performed faulty computation, leading to an #emph[optimistic] verifiability property. To this end, clients should provide a zero knowledge proof, proving that the ciphertexts they send are well-formed.
 
-The main drawback of this HE solutions is performance. First, threshold decryption is rather slow (@tFHE gives a throughput of 705 decryptions per second for 8-bit ciphertexts in a 2 party setup, while ignoring precomputations of Beaver triples @Beaver91a), and lack verifiability in most deployments.#footnote[Extending the MPC computation with a CoSNARK could add verifiability at the cost of less throughput.] Second, to achieve high throughput, expensive server farms are required. E.g, TFHE @TFHE, as implemented by Zama, achieves a throughput of 635 64-bit integer additions per second#footnote[https://docs.zama.ai/tfhe-rs/get-started/benchmarks/gpu/gpu-integer-operations] on a server farm with 8x H100 GPUs, while a 96-core AWS hpc7a.96xlarge instance only achieves a throughput of 72.5 additions per second#footnote[https://docs.zama.ai/tfhe-rs/get-started/benchmarks/cpu/cpu-integer-operations]. Finally, client side proofs are also expensive, requiring the client to compute for 1.5 `s` when having access to a 16 core machine.#footnote[https://docs.zama.ai/tfhe-rs/get-started/benchmarks/zk-proof-benchmarks]
+The main drawback of these HE solutions is performance. First, threshold decryption is rather slow (@tFHE gives a throughput of 705 decryptions per second for 8-bit ciphertexts in a 2 party setup, while ignoring precomputations of Beaver triples @Beaver91a), and lack verifiability in most deployments.#footnote[Extending the MPC computation with a CoSNARK could add verifiability at the cost of less throughput.] Second, to achieve high throughput, expensive server farms are required. E.g, TFHE @TFHE, as implemented by Zama, achieves a throughput of 635 64-bit integer additions per second#footnote[https://docs.zama.ai/tfhe-rs/get-started/benchmarks/gpu/gpu-integer-operations] on a server farm with 8x H100 GPUs, while a 96-core AWS hpc7a.96xlarge instance only achieves a throughput of 72.5 additions per second#footnote[https://docs.zama.ai/tfhe-rs/get-started/benchmarks/cpu/cpu-integer-operations]. Finally, client side proofs are also expensive, requiring the client to compute for 1.5`s` when having access to a 16 core machine.#footnote[https://docs.zama.ai/tfhe-rs/get-started/benchmarks/zk-proof-benchmarks]
 
-Finally, we briefly want to mention that approaches based on trusted execution environments (TEEs) have also been proposed in the literature. In a sense, they work very similar to the HE solution outlined above, with the exception that the balances are stored in a TEE instead of being encrypted. This approach trades improved performance against less privacy guarantess, since TEEs are known to be a prime target for side channel attacks.#footnote[See, e.g., https://sgx.fail/ for a summary of attacks.]
+Finally, we briefly want to mention that approaches based on trusted execution environments (TEEs) have also been proposed in the literature. In a sense, they work very similar to the HE solution outlined above, with the exception that the balances are stored in a TEE instead of being encrypted. This approach trades improved performance against significant lower privacy guarantees, since TEEs are known to be a prime target for side channel attacks.#footnote[See, e.g., https://sgx.fail/ for a summary of attacks.]
 
 == Notation
 
@@ -63,15 +63,20 @@ In the rest of the manuscript, we denote a secret sharing of a value $x in bb(F)
 
 In this section we describe our proposed solution on a high level, for more details on the involved subprotocols we refer to the next sections.
 
-In our solution, we essentially have three different entities involved: 1) A user who deposits and withdraws tokens and wants to initiate private token transfers to others; 2) A smart contract keeping private balances and a pool of deposited tokens; 3) A MPC-network holding secret-shares of the actual balances.
+In our solution, we essentially have three different entities involved:
+- A user who deposits and withdraws tokens and wants to initiate private token transfers to others.
+- A smart contract keeping private balances and a pool of deposited tokens.
+- An MPC-network holding secret-shares of the actual balances.
 
-Keeping not only transaction amounts and balances private, but also which wallets interact with each other, might raise concerns around compliance topics. Hence we do not hide sender/receiver addresses and the smart contract holds a hashmap (e.g, mapping in solidity), mapping user addresses directly to commitments. Furthermore, the MPC network holds another hashmap, which maps user addresses to secret shares of the balance and the randomness used to compute the commitment which is stored on chain. Whenever the user initiates an action (i.e., deposit, withdraw, or transfer), it has to communicate this to the smart contract. The smart contract will then register the action in a queue which is continuously monitored by the MPC network. The MPC network then computes the action in MPC which leads to updated commitments. To prove it performed the updates correctly, it also generates a zero knowledge proof in MPC (which is called collaborative SNARK, or CoSNARK) proving correctness of the update. The MPC network posts the new commitments alongside the proof on chain, where the smart contract verifies the proof, updates the commitments in its hashmap if the proof was correct, removes the action from the queue, and, in case of withdraw, sends tokens to the recipient.
+Keeping not only transaction amounts and balances private, but also which wallets interact with each other will lead to significantly more MPC workload (and thus less performance) and might give raise to concerns around compliance topics. Hence we do not hide sender/receiver addresses and the smart contract holds a hashmap (e.g, mapping in solidity), mapping user addresses directly to commitments. Furthermore, the MPC network holds another hashmap, which maps user addresses to secret shares of the balance and the randomness used to compute the commitment which is stored on chain. Whenever the user initiates an action (i.e., deposit, withdraw, or transfer), it has to communicate this to the smart contract. The smart contract will then register the action in a queue which is continuously monitored by the MPC network. The MPC network then computes the action in MPC which leads to updated commitments. To prove it performed the updates correctly, it also generates a zero knowledge proof in MPC (which is called collaborative SNARK, or CoSNARK) proving correctness of the update. The MPC network posts the new commitments alongside the proof on chain, where the smart contract verifies the proof, updates the commitments in its hashmap if the proof was correct, removes the action from the queue, and, in case of withdraw, sends tokens to the recipient.
 
 The advantages of this systems are as follows. First, the client side computations are minimal. To initiate transactions, it only has to post a transaction on chain and, in case of a transfer, send secret shares to the MPC network. No expensive client side ZK proofs need to be computed. Second, since the MPC network creates ZK proofs of all its actions, integrity of funds is always given and the MPC network can not misuse funds.
 
 = The MPC Computations
 
-In this section we have a closer look at the computations happening at the MPC network. We list all the involved algorithms in @alg:mpc_network. The first tow algorithms in @alg:mpc_network (`Map.insert` and `Map.get`) represent the access of the actual data structure, which store the secret-shared balance and randomness. Note that these are normal hashmaps. Then, each action (deposit, withdraw and transfer) essentially just create new commitment and stores them in the hashmap. Finally each action concludes by computing a zero knowledge proof in MPC to prove integrity to the smart contract.
+In this section we have a closer look at the computations happening at the MPC network. We list all the involved algorithms in @alg:mpc_network. The first two algorithms in @alg:mpc_network (`Map.insert` and `Map.get`) represent the access of the actual data structure, which store the secret-shared balance and randomness. Note that these are normal hashmaps. Then, each action (deposit, withdraw and transfer) essentially just create new commitment and stores them in the hashmap. Finally each action concludes by computing a zero knowledge proof in MPC to prove integrity to the smart contract.
+
+#pagebreak() // TODO check if we should remove at some point
 
 #show: style-algorithm
 #algorithm-figure(
@@ -160,9 +165,9 @@ In this section we give details to the zero knowledge proof created by the MPC n
 
 == Deposit Proof $pi_"deposit"$
 
-The deposit proof (@fig:pi_deposit) essentially proves that the commitment of the targeted user has been update correctly. It thus can be verified using the old commitment (stored in the smart contract), the new commitment (is put into the smart contract by the MPC network) and by knowing the deposit amount (which is also known by the smart contract at this point). Furthermore, we limit the deposit amount to a reasonable number, which is also part of the ZK proof. The reason for this limit is that withdraw and transfer proofs need to show that the new balance of the sender is still positive. Having a limit on the transfer amount simplifies this range proof.
+The deposit proof (@fig:pi_deposit) essentially proves that the commitment of the targeted user has been updated correctly. It thus can be verified using the old commitment (stored in the smart contract), the new commitment (is put into the smart contract by the MPC network) and by knowing the deposit amount (which is also known by the smart contract at this point). Furthermore, we limit the deposit amount to a reasonable number, which is also part of the ZK proof. The reason for this limit is that withdraw and transfer proofs need to show that the new balance of the sender is still positive. Having a limit on the transfer amount simplifies this range proof.
 
-#remark[In our current prototype we use a limit of 80 bit for transaction amounts. In case of ethereum where balances are denoted in Wei, this allows to transact $2^80/10^18 approx 1.2$ million ETH at once, which should be enough for most use cases.]
+#remark[In our current prototype we use a limit of 80 bits for transaction amounts. In case of ethereum where balances are denoted in Wei, this allows to transact $2^80/10^18 approx 1.2$ million ETH at once, which should be enough for most use cases.]
 
 
 #figure(
@@ -190,7 +195,7 @@ The deposit proof (@fig:pi_deposit) essentially proves that the commitment of th
 
 The withdraw proof (@fig:pi_withdraw) is conceptually very similar to the deposit proof (@fig:pi_deposit), with the difference that the balance is subtracted instead of added, and that the resulting balance proven to be $>= 0$. The latter statement is proven by a range check.
 
-#remark[In our current prototype we somewhat arbitrarily prove that the resulting statement has at most 100 bit.]
+#remark[In our current prototype we somewhat arbitrarily prove that the resulting statement has at most 100 bits.]
 
 #figure(
   box(stroke: black, inset: 1em)[
@@ -216,7 +221,7 @@ The withdraw proof (@fig:pi_withdraw) is conceptually very similar to the deposi
 
 == Transfer Proof $pi_"transfer"$
 
-Finally, the transfer proof (@fig:pi_transfer) is essentially a combination of the deposit proof (@fig:pi_deposit) and withdraw proof (@fig:pi_withdraw). In other words, the proof show that the sender commitments were updated as in a withdraw (including proof of enough balances), whereas the receiver commitments were updated according to a deposit proof.
+Finally, the transfer proof (@fig:pi_transfer) is essentially a combination of the deposit proof (@fig:pi_deposit) and withdraw proof (@fig:pi_withdraw). In other words, the proof shows that the sender commitments were updated as in a withdraw (including proof of enough balances), whereas the receiver commitments were updated according to a deposit proof.
 
 #figure(
   box(stroke: black, inset: 1em)[
@@ -254,7 +259,7 @@ Finally, the transfer proof (@fig:pi_transfer) is essentially a combination of t
 
 == Batching Proofs <sec:batch>
 
-It is possible to batch multiple transfers into one ZK proof to reduce the gas fee for verifying multiple transfers on chain. Furthermore, `deposit` and `withdraw` can be proven by $pi_"transfer"$ as well, allowing to batch deposits, withdraws and individual transfers into just one ZK proof which verifies multiple transfers.
+Since verifying a ZK prove on-chain is costly in terms of gas fees (mostly due to evaluating a pairing), we investigate batching multiple transfers into one ZK proof. This would reduce the gas fee for verifying multiple transfers significantly. Furthermore, `deposit` and `withdraw` can be proven by $pi_"transfer"$ as well, allowing to batch deposits, withdraws and individual transfers into just one ZK proof which verifies multiple transfers.
 
 To verify a `deposit` via a transfer proof $pi_"transfer"$, we do the following:
 - Use the old balance, old blinding and new blinding of the `deposit` as the old receiver balance, old receiver blinding and new receiver blinding in a `transfer` respectively.
@@ -280,7 +285,7 @@ In our proposed system, a user can read balances by asking the MPC network to se
       - *The User*:
         1. The user signs a timestamp $t$ to create the signature $sigma <- mono("sign")(t, sk)$ using its private key sk. The user sends $(t, sigma, pk)$ to the MPC network
       - *The MPC Network*:
-        2. On receiving  $(t, sigma, pk)$ from a user, the MPC network verifies that the timestamp $t$ is still valid, verifies the signature $mono("verify")(sigma, t, pk)$, and gets $([b] ,[r]) <- mono("Map.get")(mono("address")(pk))$. It then opens $[b]$ and $[r]$ to the user.
+        2. On receiving  $(t, sigma, pk)$ from a user, the MPC network verifies that the timestamp $t$ is still valid, verifies the signature $mono("verify")(sigma, t, pk)$, and gets $([b] ,[r]) <- mono("Map.get")(mono("address")(pk))$. It then encrypts $[b]$ and $[r]$ for the user using $pk$ and transmits the ciphertexts.
       - *The User*:
         3. On receiving $(b, r)$ from the MPC network, the user reads its commitment $C$ from the smart contract and checks whether it matches `commit`$(b,r)$.
     ]],
@@ -289,7 +294,7 @@ In our proposed system, a user can read balances by asking the MPC network to se
 
 == Deposit
 
-For a deposit, the user first has to transmit funds into the smart contract. Doing so, the smart contract registers a deposit action in a queue, which gets processed by the MPC network. While processing, the MPC network updates its shares corresponding to the user address, computes a commitment to the new balance, and a ZK proof proving correctness. It then posts the proof on chain, where the smart contract verifies the proof and stores the new commitment in its internal hashmap to show the user balance has been updated. The full protocol is given in @scheme:deposit.
+For a deposit, the user first has to transmit funds into the smart contract. Doing so, the smart contract registers a deposit action in a queue, which gets processed by the MPC network. While processing, the MPC network updates its shares corresponding to the user address, computes a commitment to the new balance, and a ZK proof of correctness. It then posts the proof on-chain, where the smart contract verifies the proof and stores the new commitment in its internal hashmap to show the user balance has been updated. The full protocol is given in @scheme:deposit.
 
 Note that the deposit does not include any signatures, since the smart contract transaction implicitly authenticates the user already.
 
@@ -329,6 +334,9 @@ Note that the withdraw does not include any signatures, since the smart contract
   caption: [The protocol for withdrawing tokens.],
 )<scheme:withdraw>
 
+#remark[We note that it is possible to implement a fail-safe functionality into the smart contract that allows users to retrieve funds if the MPC network would go out of service. This could be realized by letting users withdraw their funds by providing the amount and the randomness which were used to compute the on-chain commitment. This fail-safe, however, should only be enabled on a trigger (e.g., if the MPC network does not make a keep-alive transaction for a longer time) to prevent the on-chain commitments going out of sync with the MPC network. Furthermore, this technique requires the user to regularly query the randomness and balance from the MPC network.]
+
+
 == Transfer
 
 When a user wants to transfer funds to someone else, it first needs to post the intent into the smart contract. This intent includes the receiver address, as well as a commitment to the amount which later gets linked to the zero knowledge proof posted by the MPC network. Then, the user needs to secret-share the transfer amount, as well as the randomness used to compute the commitments, to the MPC network. To authenticate the shares and prevent other users to post shares for transfers which are not theirs, the user has to sign the secret shares it sends to the MPC network. The MPC network, on reading the queue and receiving the secret shares, updates its balances, computes commitments to the new balances, and computes a ZK proof proving correctness. It then posts the proof on chain, where the smart contract verifies the proof and stores the new commitments in its internal hashmap to show the user balances have been updated.
@@ -354,7 +362,7 @@ Note that if the proof does not verify, the MPC network needs to roll back the t
 
 = Benchmarks
 
-In this section we give some benchmarks of our currently implemented prototype. In all the benchmarks we use the 3-party replicated secret sharing protocol @ABY3. As commitments we use hash-based commitments using the Poseidon2 hash function @Poseidon2. Concretely, we use Poseidon2 with an internal statesize of $t=2$ in feed-forward mode of operation. In other words, a commitment to $x$ with randomness $r$ is computed as $C = mono("Poseidon2.permute")(x + d, r)[0] + x$, where $d$ is a domain separator. We use the Noir#footnote[https://noir-lang.org/] language to write the ZK circuits, use a compiler#footnote[https://github.com/TaceoLabs/CoNoir-to-R1CS] to translate it to an R1CS system and use Co-Circom#footnote[https://github.com/TaceoLabs/co-snarks/tree/main/co-circom] to create a Groth16 @Groth16 proof in MPC. Thereby, Groth16 is instantiated over the BN254 pairing friendly curve.
+In this section we give some benchmarks of our currently implemented prototype #footnote[https://github.com/TaceoLabs/private_deposit]. In all the benchmarks we use the 3-party replicated secret sharing protocol @ABY3. As commitments we use hash-based commitments using the Poseidon2 hash function @Poseidon2. Concretely, we use Poseidon2 with an internal statesize of $t=2$ in feed-forward mode of operation. In other words, a commitment to $x$ with randomness $r$ is computed as $C = mono("Poseidon2.permute")(x + d, r)[0] + x$, where $d$ is a domain separator. We use the Noir#footnote[https://noir-lang.org/] language to write the ZK circuits, use a compiler#footnote[https://github.com/TaceoLabs/CoNoir-to-R1CS] to translate it to an R1CS system and use Co-Circom#footnote[https://github.com/TaceoLabs/co-snarks/tree/main/co-circom] to create a Groth16 @Groth16 proof in MPC. Thereby, Groth16 is instantiated over the BN254 pairing friendly curve.
 
 In all benchmarks in this section, we give numbers for different subprotocols. Thereby, `No Proofs` refers to all MPC computations without verifiability. In other words, only the data structure is updated and commitments are computed in MPC. On the contrary, `Full` refers to the full MPC protocol including the CoGroth16 proof. Furthermore, we give benchmarks for the two major parts involved in `Full`, namely `WitExt` (witness extension) which includes modifying the data structure and creating the witness for R1CS constraint system in MPC#footnote[This also implicitly creates the commitments.], and `CoGroth16` which translates the R1CS constraint system (including secret shared witness) into a zero knowledge proof.
 
@@ -410,11 +418,11 @@ In this section we give benchmarks for processing one individual deposit, withdr
   caption: [Communication in `kB` for all the steps involved in deposit, withdraw and transfer.],
 ) <table:comm>
 
-The tables show, that processing an individual action is reasonably fast, where a singlethreated execution without proof takes roughly $4$ `ms`, which gets increased to $19$ `ms` for the transfer action executed with ZK proof#footnote[Witness extension is singlethreated, while CoGroth16 uses multithreading internally.] Furthermore, communication is less than $65$ `kB` in any case. 'This leads to a throughput of 230 wihtout proof and about 50 with proof.
+The tables show, that processing an individual action is reasonably fast, where a singlethreaded execution without proof takes roughly $4$ `ms`, which gets increased to $19$ `ms` for the transfer action executed with ZK proof.#footnote[Witness extension is singlethreaded, while CoGroth16 uses multithreading internally.] Furthermore, communication is less than $65$ `kB` in any case. This leads to a throughput of 230 wihtout proof and about 50 with proof.
 
 == Batched Benchmarks <sec:bench_batch>
 
-In this section we give benchmarks for a multithread and batched version of the protocol (see @sec:batch). Concretely, we batch 96 transaction. Thereby, `No Proofs` and `WitExt` compute each individual transaction in a separate thread, whereas `CoGroth16` produces on ZK proof which verifies 96 transactions internally.#footnote[CoGroth16 uses multithreading internally to compute the multiscalar multiplications more efficiently.] The benchmarks are given in @table:batched_runtime for two different machine setups. Furthermore, @table:batched_throughput gives the corresponding throughput of transactions per second.
+In this section we give benchmarks for a multithread and batched version of the protocol (see @sec:batch). Concretely, we batch 96 transaction to match the cores on one of the used benchmark machines. Thereby, `No Proofs` and `WitExt` compute each individual transaction in a separate thread, whereas `CoGroth16` produces on ZK proof which verifies 96 transactions internally.#footnote[CoGroth16 uses multithreading internally to compute the multiscalar multiplications more efficiently.] The benchmarks are given in @table:batched_runtime for two different machine setups. Furthermore, @table:batched_throughput gives the corresponding throughput of transactions per second.
 
 For the two machine setup we benchmark the case where each MPC party is one m7a.4xlarge AWS instance with 16 CPU cores and a network bandwidth of 12.5 GBit/s (same as for the benchmarks in the previous section), and the case where each MPC party is a m7a.24xlarge instance with a bandwidth of 37.5 GBit/s. The latter machine has 96 CPUs which matches the batch size we benchmark.
 
