@@ -3,8 +3,10 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {PrivateBalance} from "../../src/priv_balance.sol";
+import {Groth16Verifier} from "../../src/groth16_verifier.sol";
+import {Poseidon2T2_BN254} from "../../src/poseidon2.sol";
 
-contract PrivateBalanceScript is Script {
+contract PrivateBalanceWithDepsScript is Script {
     PrivateBalance public priv_balance;
 
     // MPC Public Keys
@@ -26,12 +28,24 @@ contract PrivateBalanceScript is Script {
 
     function setUp() public {}
 
+    function deployPoseidon2() public returns (address) {
+        Poseidon2T2_BN254 poseidon2 = new Poseidon2T2_BN254();
+        console.log("Poseidon2 deployed to:", address(poseidon2));
+        return address(poseidon2);
+    }
+
+    function deployGroth16Verifier() public returns (address) {
+        Groth16Verifier verifier = new Groth16Verifier();
+        console.log("Groth16Verifier deployed to:", address(verifier));
+        return address(verifier);
+    }
+
     function run() public {
-        address verifier = vm.envAddress("VERIFIER_ADDRESS");
-        address poseidon2 = vm.envAddress("POSEIDON2_ADDRESS");
         address mpcAddress = vm.envAddress("MPC_ADDRESS");
 
         vm.startBroadcast();
+        address verifier = deployGroth16Verifier();
+        address poseidon2 = deployPoseidon2();
         priv_balance = new PrivateBalance(
             verifier,
             poseidon2,

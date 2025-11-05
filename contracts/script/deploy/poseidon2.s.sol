@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {Poseidon2T2_BN254} from "../../src/poseidon2.sol";
 
-contract Groth16VerifierScript is Script {
+contract Poseidon2Script is Script {
     Poseidon2T2_BN254 public poseidon2;
 
     function setUp() public {}
