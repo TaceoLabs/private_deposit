@@ -28,9 +28,12 @@ impl<V: CanonicalDeserialize + CanonicalSerialize + Clone> DepositValue<V> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct PrivateDeposit<K, V> {
+pub struct PrivateDeposit<K, V>
+where
+    K: std::hash::Hash + Eq,
+{
     inner: HashMap<K, V>,
 }
 
@@ -45,7 +48,10 @@ where
     }
 }
 
-impl<K, V> IntoIterator for PrivateDeposit<K, V> {
+impl<K, V> IntoIterator for PrivateDeposit<K, V>
+where
+    K: std::hash::Hash + Eq,
+{
     type Item = (K, V);
     type IntoIter = std::collections::hash_map::IntoIter<K, V>;
 
