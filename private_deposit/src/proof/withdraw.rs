@@ -1,7 +1,7 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_groth16::Proof;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, HonkProof, Rep3AcvmType};
+use co_noir::{AcirFormat, HonkProof, Rep3AcvmType, VerifyingKeyBarretenberg};
 use co_noir_common::crs::ProverCrs;
 use co_noir_to_r1cs::{
     noir::{r1cs, ultrahonk},
@@ -10,6 +10,7 @@ use co_noir_to_r1cs::{
 use eyre::Context;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
+use noir_types::U256;
 use noirc_artifacts::program::ProgramArtifact;
 
 use super::Curve;
@@ -70,10 +71,11 @@ where
         program_artifact: ProgramArtifact,
         constraint_system: &AcirFormat<F>,
         prover_crs: &ProverCrs<ark_bn254::G1Projective>,
+        verifying_key: &VerifyingKeyBarretenberg<ark_bn254::G1Projective>,
         net0: &N,
         net1: &N,
         rep3_state: &mut Rep3State,
-    ) -> eyre::Result<(DepositValueShare<F>, HonkProof<F>, Vec<F>)> {
+    ) -> eyre::Result<(DepositValueShare<F>, HonkProof<U256>, Vec<U256>)> {
         let (old, new) = self.withdraw(key, amount, rep3_state)?;
 
         let inputs =
@@ -102,8 +104,14 @@ where
         )?;
         let witness = co_noir::witness_stack_to_vec_rep3(witness_stack);
 
-        let (proof, public_inputs) =
-            ultrahonk::prove(constraint_system, witness, prover_crs, net0, net1)?;
+        let (proof, public_inputs) = ultrahonk::prove(
+            constraint_system,
+            witness,
+            prover_crs,
+            verifying_key,
+            net0,
+            net1,
+        )?;
 
         Ok((new, proof, public_inputs))
     }
@@ -212,7 +220,8 @@ mod tests {
         let verifier_crs = TestConfig::get_verifier_crs().unwrap();
         let vk_barretenberg =
             ultrahonk::generate_vk_barretenberg(&constraint_system, prover_crs.clone()).unwrap();
-        let vk = ultrahonk::get_vk(vk_barretenberg, verifier_crs);
+        let vk = ultrahonk::get_vk(vk_barretenberg.to_owned(), verifier_crs);
+        let vk_barretenberg = Arc::new(vk_barretenberg);
 
         // Init networks
         let mut test_network0 = LocalNetwork::new(3);
@@ -253,6 +262,7 @@ mod tests {
                 ) {
                     let constraint_system = constraint_system.clone();
                     let pa = pa.clone();
+                    let vk_barretenberg = vk_barretenberg.clone();
                     let prover_crs = prover_crs.clone();
 
                     let handle = scope.spawn(move || {
@@ -266,6 +276,7 @@ mod tests {
                                 pa,
                                 &constraint_system,
                                 &prover_crs,
+                                &vk_barretenberg,
                                 net0,
                                 net1,
                                 &mut rep3,

@@ -29,6 +29,7 @@ itertools.workspace = true
 mpc-core.workspace = true
 mpc-net.workspace = true
 noirc-artifacts.workspace = true
+noir-types.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 rustls.workspace = true
