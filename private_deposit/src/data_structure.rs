@@ -2,14 +2,23 @@ use ark_ff::PrimeField;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use mpc_core::protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State};
 use rand::{CryptoRng, Rng};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
 pub type DepositValuePlain<F> = DepositValue<F>;
 pub type DepositValueShare<F> = DepositValue<Rep3PrimeFieldShare<F>>;
 
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize, Serialize, Deserialize)]
 pub struct DepositValue<V: CanonicalDeserialize + CanonicalSerialize + Clone> {
+    #[serde(
+        serialize_with = "mpc_core::serde_compat::ark_se",
+        deserialize_with = "mpc_core::serde_compat::ark_de"
+    )]
     pub amount: V,
+    #[serde(
+        serialize_with = "mpc_core::serde_compat::ark_se",
+        deserialize_with = "mpc_core::serde_compat::ark_de"
+    )]
     pub blinding: V,
 }
 
