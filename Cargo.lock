@@ -996,17 +996,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
-name = "ark-babyjubjub"
-version = "0.5.0"
-source = "git+https://github.com/TaceoLabs/nullifier-oracle-service?rev=8d04f68c136a2185f6898c9613e7e7ac229e2651#8d04f68c136a2185f6898c9613e7e7ac229e2651"
-dependencies = [
- "ark-bn254",
- "ark-ec",
- "ark-ff 0.5.0",
- "ark-std 0.5.0",
-]
-
-[[package]]
 name = "ark-bls12-381"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4877,7 +4866,6 @@ dependencies = [
 name = "private_deposit"
 version = "0.1.0"
 dependencies = [
- "ark-babyjubjub",
  "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
@@ -4900,6 +4888,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rustls",
  "serde",
+ "taceo-ark-babyjubjub",
  "tracing",
  "tracing-subscriber 0.3.20",
 ]
@@ -5464,7 +5453,6 @@ name = "rust-contract"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "ark-babyjubjub",
  "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
@@ -5472,6 +5460,7 @@ dependencies = [
  "eyre",
  "mpc-core",
  "rand 0.8.5",
+ "taceo-ark-babyjubjub",
  "tokio",
  "tracing",
 ]
@@ -6318,6 +6307,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.108",
+]
+
+[[package]]
+name = "taceo-ark-babyjubjub"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f404332979db17b044cb8eb92bd471d993ed8713ffb08dc9b3f459414123a499"
+dependencies = [
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-std 0.5.0",
 ]
 
 [[package]]

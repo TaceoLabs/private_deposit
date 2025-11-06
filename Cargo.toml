@@ -15,7 +15,7 @@ readme = "./README.md"
 
 [workspace.dependencies]
 alloy = { version = "1", default-features = false }
-ark-babyjubjub = { version = "0.5.0", git = "https://github.com/TaceoLabs/nullifier-oracle-service", rev = "8d04f68c136a2185f6898c9613e7e7ac229e2651" }
+ark-babyjubjub = { package = "taceo-ark-babyjubjub", version = "0.5" }
 ark-bn254 = "^0.5.0"
 ark-ec = "^0.5.0"
 ark-ff = "^0.5.0"
