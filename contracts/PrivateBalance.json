@@ -627,6 +627,69 @@
   },
   {
     "type": "function",
+    "name": "transferBatch",
+    "inputs": [
+      {
+        "name": "senders",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "receivers",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "amount_commitments",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "ciphertexts",
+        "type": "tuple[]",
+        "internalType": "struct PrivateBalance.Ciphertext[]",
+        "components": [
+          {
+            "name": "amount",
+            "type": "uint256[3]",
+            "internalType": "uint256[3]"
+          },
+          {
+            "name": "r",
+            "type": "uint256[3]",
+            "internalType": "uint256[3]"
+          },
+          {
+            "name": "sender_pk",
+            "type": "tuple",
+            "internalType": "struct PrivateBalance.BabyJubJubElement",
+            "components": [
+              {
+                "name": "x",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "y",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "verifier",
     "inputs": [],
     "outputs": [

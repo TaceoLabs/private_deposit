@@ -270,7 +270,10 @@ impl PrivateBalanceContract {
             .await
             .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("transfer done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "transfer done with transaction hash: {tx_hash:?}, gas used: {}",
+                receipt.gas_used
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -299,7 +302,48 @@ impl PrivateBalanceContract {
             .await
             .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("transfer done with transaction hash: {tx_hash}",);
+            tracing::debug!("transfer done with transaction hash: {tx_hash:?}",);
+        } else {
+            eyre::bail!("cannot finish transaction: {receipt:?}");
+        }
+
+        Ok(tx_hash)
+    }
+
+    pub async fn transfer_batched(
+        &self,
+        from: &[Address],
+        to: &[Address],
+        amount: &[F],
+        ciphertext: &[Ciphertext],
+    ) -> eyre::Result<TxHash> {
+        assert_eq!(from.len(), to.len());
+        assert_eq!(from.len(), amount.len());
+        assert_eq!(from.len(), ciphertext.len());
+        let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
+
+        let pending_tx = contract
+            .transferBatch(
+                from.to_vec(),
+                to.to_vec(),
+                amount.iter().map(|x| crate::field_to_u256(*x)).collect(),
+                ciphertext.to_vec(),
+            )
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .register()
+            .await
+            .context("while registering watcher for transaction")?;
+
+        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
+            .await
+            .context("while waiting for receipt")?;
+        if receipt.status() {
+            tracing::info!(
+                "transferBatch done with transaction hash: {tx_hash:?}, gas_used: {}",
+                receipt.gas_used
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -351,7 +395,10 @@ impl PrivateBalanceContract {
             .await
             .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("remove action done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "remove action done with transaction hash: {tx_hash}, gas_used: {}",
+                receipt.gas_used
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -425,7 +472,7 @@ impl PrivateBalanceContract {
             .read_queue(crate::usize_to_u256(num_items))
             .call()
             .await
-            .context("while calling get_action_at_index")?;
+            .context("while calling read_queue")?;
 
         if res._0.len() != res._1.len() {
             eyre::bail!("mismatched lengths in read_queue");
