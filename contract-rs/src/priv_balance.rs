@@ -247,6 +247,37 @@ impl PrivateBalanceContract {
         Ok([key1, key2, key3])
     }
 
+    pub async fn transfer_with_sender(
+        &self,
+        to: Address,
+        from: Address,
+        amount: F,
+        ciphertext: Ciphertext,
+    ) -> eyre::Result<TxHash> {
+        let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
+
+        let pending_tx = contract
+            .transfer(to, crate::field_to_u256(amount), ciphertext)
+            .from(from)
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .register()
+            .await
+            .context("while registering watcher for transaction")?;
+
+        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
+            .await
+            .context("while waiting for receipt")?;
+        if receipt.status() {
+            tracing::info!("transfer done with transaction hash: {tx_hash}",);
+        } else {
+            eyre::bail!("cannot finish transaction: {receipt:?}");
+        }
+
+        Ok(tx_hash)
+    }
+
     pub async fn transfer(
         &self,
         to: Address,
