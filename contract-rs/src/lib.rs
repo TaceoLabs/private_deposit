@@ -131,11 +131,13 @@ pub struct TransactionInputRust {
 impl TryFrom<TransactionInputRust> for TransactionInput {
     type Error = eyre::Error;
 
-    fn try_from(input: TransactionInputRust) -> eyre::Result<Self> {
+    fn try_from(mut input: TransactionInputRust) -> eyre::Result<Self> {
         const BATCH_SIZE: usize = 50;
-        if input.action_index.len() != BATCH_SIZE || input.commitment.len() != BATCH_SIZE * 2 {
+        if input.action_index.len() > BATCH_SIZE || input.commitment.len() != BATCH_SIZE * 2 {
             eyre::bail!("Invalid input lengths");
         }
+        // pad action_index with zeros, which is the index for dummy, commitments are already padded by MPC
+        input.action_index.resize(BATCH_SIZE, 0);
 
         let action_index = array::from_fn(|i| usize_to_u256(input.action_index[i]));
         let commitments = array::from_fn(|i| field_to_u256(input.commitment[i]));
