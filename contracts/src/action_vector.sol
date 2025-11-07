@@ -33,10 +33,7 @@ library QueryMapLib {
         self.size++;
     }
 
-    function get(
-        QueryMap storage self,
-        uint256 key
-    ) public view returns (ActionQuery memory value) {
+    function get(QueryMap storage self, uint256 key) public view returns (ActionQuery memory value) {
         if (!self.data[key].present) {
             return ActionQuery(Action.Invalid, address(0), address(0), 0);
         }
@@ -51,10 +48,7 @@ library QueryMapLib {
         return self.data.length - 1;
     }
 
-    function remove(
-        QueryMap storage self,
-        uint256 key
-    ) public returns (bool success) {
+    function remove(QueryMap storage self, uint256 key) public returns (bool success) {
         if (key >= self.data.length || !self.data[key].present) {
             return false;
         }
@@ -62,20 +56,14 @@ library QueryMapLib {
         self.size--;
         if (key == self.lowestKey) {
             // Update lowestKey
-            while (
-                self.lowestKey < self.data.length &&
-                !self.data[self.lowestKey].present
-            ) {
+            while (self.lowestKey < self.data.length && !self.data[self.lowestKey].present) {
                 self.lowestKey++;
             }
         }
         return true;
     }
 
-    function next_key(
-        QueryMap storage self,
-        uint256 currentKey
-    ) public view returns (uint256, bool) {
+    function next_key(QueryMap storage self, uint256 currentKey) public view returns (uint256, bool) {
         uint256 nextKey = currentKey + 1;
         while (nextKey < self.data.length && !self.data[nextKey].present) {
             nextKey++;
@@ -86,10 +74,7 @@ library QueryMapLib {
         return (nextKey, true);
     }
 
-    function contains(
-        QueryMap storage self,
-        uint256 key
-    ) public view returns (bool) {
+    function contains(QueryMap storage self, uint256 key) public view returns (bool) {
         return self.data[key].present;
     }
 }
