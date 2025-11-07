@@ -108,6 +108,11 @@
     "inputs": [],
     "outputs": [
       {
+        "name": "data_length",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "lowestKey",
         "type": "uint256",
         "internalType": "uint256"
