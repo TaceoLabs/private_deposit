@@ -108,6 +108,11 @@
     "inputs": [],
     "outputs": [
       {
+        "name": "lowestKey",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "size",
         "type": "uint256",
         "internalType": "uint256"

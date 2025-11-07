@@ -2,7 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
-import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
+// import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
+import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_vector.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -14,7 +15,10 @@ interface IGroth16Verifier {
 }
 
 interface Poseidon2T2_BN254 {
-    function compress(uint256[2] memory inputs, uint256 domain_sep) external pure returns (uint256);
+    function compress(
+        uint256[2] memory inputs,
+        uint256 domain_sep
+    ) external pure returns (uint256);
 }
 
 contract PrivateBalance {
@@ -38,8 +42,6 @@ contract PrivateBalance {
 
     // Stores the actions which are not yet processed
     QueryMap public action_queue;
-    // Current index for inserting new actions
-    uint256 next_action_queue_index;
 
     // Stores the secret shares of the amount and randomness for a transfer
     mapping(uint256 => Ciphertext) private shares;
@@ -49,11 +51,15 @@ contract PrivateBalance {
     bool allow_all;
 
     // BN254 prime field
-    uint256 constant PRIME = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
+    uint256 constant PRIME =
+        0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
     // Batch size for processing actions
     uint256 private constant BATCH_SIZE = 50;
     // Commitment to zero balance commit(0, 0)
-    uint256 private constant ZERO_COMMITMENT = 0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
+    uint256 private constant ZERO_COMMITMENT =
+        0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
+
+    uint256 private constant DS = 0xDEADBEEF;
 
     // BabyJubJub curve parameters
     uint256 public constant A = 168700;
@@ -112,9 +118,13 @@ contract PrivateBalance {
         verifier = IGroth16Verifier(_verifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
         mpcAdress = _mpcAdress;
-        ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
-        action_queue.insert(0, aq); // Dummy action at index 0
-        next_action_queue_index = 1;
+        ActionQuery memory aq = ActionQuery(
+            Action.Dummy,
+            address(0),
+            address(0),
+            0
+        );
+        action_queue.push(aq); // Dummy action at index 0
     }
 
     struct BabyJubJubElement {
@@ -148,7 +158,10 @@ contract PrivateBalance {
 
     // This initializes the mapping for demo purposes so that we do not need to deposit for each user. This simplifies the demo setup such that we do not need to give each wallet some funds to call deposit().
     // It is intended that during this function call the setup party of the demo deposits enough funds to the contract to back these balances.
-    function setBalancesForDemo(address[] calldata addresses, uint256[] calldata commitments) public payable onlyMPC {
+    function setBalancesForDemo(
+        address[] calldata addresses,
+        uint256[] calldata commitments
+    ) public payable onlyMPC {
         if (addresses.length != commitments.length) {
             revert InvalidParameters();
         }
@@ -161,12 +174,6 @@ contract PrivateBalance {
         }
     }
 
-    function getNextFreeQueueIndex() internal returns (uint256) {
-        uint256 index = next_action_queue_index;
-        next_action_queue_index = next_action_queue_index + 1;
-        return index;
-    }
-
     function getBalanceCommitment(address user) public view returns (uint256) {
         uint256 commitment = balanceCommitments[user];
         if (commitment == 0) {
@@ -176,7 +183,9 @@ contract PrivateBalance {
         return commitment;
     }
 
-    function getActionAtIndex(uint256 index) public view returns (ActionQuery memory) {
+    function getActionAtIndex(
+        uint256 index
+    ) public view returns (ActionQuery memory) {
         return action_queue.get(index);
     }
 
@@ -184,18 +193,23 @@ contract PrivateBalance {
         return action_queue.map_size();
     }
 
-    function getCiphertextAtIndex(uint256 index) public view returns (Ciphertext memory) {
+    function getCiphertextAtIndex(
+        uint256 index
+    ) public view returns (Ciphertext memory) {
         return shares[index];
     }
 
-    function commit(uint256 input, uint256 randomness) public view returns (uint256) {
+    function commit(
+        uint256 input,
+        uint256 randomness
+    ) public view returns (uint256) {
         if (input >= PRIME) {
             revert NotInPrimeField();
         }
         if (randomness >= PRIME) {
             revert NotInPrimeField();
         }
-        return poseidon2.compress([input, randomness], 0xDEADBEEF);
+        return poseidon2.compress([input, randomness], DS);
     }
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
@@ -215,10 +229,14 @@ contract PrivateBalance {
             revert InvalidAmount();
         }
 
-        ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
-        uint256 index = getNextFreeQueueIndex();
-        action_queue.insert(index, aq);
-        return index;
+        ActionQuery memory aq = ActionQuery(
+            Action.Deposit,
+            address(0),
+            receiver,
+            amount
+        );
+        action_queue.push(aq);
+        return action_queue.highest_key();
     }
 
     function withdraw(uint256 amount) public demoWhitelist returns (uint256) {
@@ -232,17 +250,21 @@ contract PrivateBalance {
         }
         // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
-        ActionQuery memory aq = ActionQuery(Action.Withdraw, sender, address(0), amount);
-        uint256 index = getNextFreeQueueIndex();
-        action_queue.insert(index, aq);
-        return index;
+        ActionQuery memory aq = ActionQuery(
+            Action.Withdraw,
+            sender,
+            address(0),
+            amount
+        );
+        action_queue.push(aq);
+        return action_queue.highest_key();
     }
 
-    function transfer(address receiver, uint256 amount, Ciphertext calldata ciphertext)
-        public
-        demoWhitelist
-        returns (uint256)
-    {
+    function transfer(
+        address receiver,
+        uint256 amount,
+        Ciphertext calldata ciphertext
+    ) public demoWhitelist returns (uint256) {
         address sender = msg.sender;
         // Amount is just a commitment here
         if (amount >= PRIME) {
@@ -253,7 +275,9 @@ contract PrivateBalance {
         }
         // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
-        if (!isOnBabyJubJubCurve(ciphertext.sender_pk.x, ciphertext.sender_pk.y)) {
+        if (
+            !isOnBabyJubJubCurve(ciphertext.sender_pk.x, ciphertext.sender_pk.y)
+        ) {
             revert NotOnCurve();
         }
 
@@ -264,13 +288,20 @@ contract PrivateBalance {
         if (ciphertext.r[1] >= PRIME) revert NotInPrimeField();
         if (ciphertext.r[2] >= PRIME) revert NotInPrimeField();
 
-        ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
-        uint256 index = getNextFreeQueueIndex();
-        action_queue.insert(index, aq);
+        ActionQuery memory aq = ActionQuery(
+            Action.Transfer,
+            sender,
+            receiver,
+            amount
+        );
+
+        action_queue.push(aq);
+        uint256 index = action_queue.highest_key();
         shares[index] = ciphertext;
         return index;
     }
 
+    // TODO This function is only used for demo to make it easier to register balances. It does not check a signature of the sender_pk.
     function transferBatch(
         address[] calldata senders,
         address[] calldata receivers,
@@ -278,8 +309,9 @@ contract PrivateBalance {
         Ciphertext[] calldata ciphertexts
     ) public onlyMPC returns (uint256[] memory) {
         if (
-            senders.length != receivers.length || receivers.length != amount_commitments.length
-                || receivers.length != ciphertexts.length
+            senders.length != receivers.length ||
+            receivers.length != amount_commitments.length ||
+            receivers.length != ciphertexts.length
         ) {
             revert InvalidParameters();
         }
@@ -297,7 +329,12 @@ contract PrivateBalance {
             }
             // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
-            if (!isOnBabyJubJubCurve(ciphertexts[i].sender_pk.x, ciphertexts[i].sender_pk.y)) {
+            if (
+                !isOnBabyJubJubCurve(
+                    ciphertexts[i].sender_pk.x,
+                    ciphertexts[i].sender_pk.y
+                )
+            ) {
                 revert NotOnCurve();
             }
 
@@ -308,9 +345,14 @@ contract PrivateBalance {
             if (ciphertexts[i].r[1] >= PRIME) revert NotInPrimeField();
             if (ciphertexts[i].r[2] >= PRIME) revert NotInPrimeField();
 
-            ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
-            uint256 index = getNextFreeQueueIndex();
-            action_queue.insert(index, aq);
+            ActionQuery memory aq = ActionQuery(
+                Action.Transfer,
+                sender,
+                receiver,
+                amount
+            );
+            action_queue.push(aq);
+            uint256 index = action_queue.highest_key();
             shares[index] = ciphertexts[i];
             indices[i] = index;
         }
@@ -328,7 +370,10 @@ contract PrivateBalance {
     // This function processes a batch of actions, updates the commitments,
     // and removes the actions from the queue.
     // Deposit and Withdraw are rewritten to be transfers
-    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public payable onlyMPC {
+    function processMPC(
+        TransactionInput calldata inputs,
+        Groth16Proof calldata proof
+    ) public payable onlyMPC {
         uint256[BATCH_SIZE * 5] memory commitments;
 
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
@@ -339,13 +384,15 @@ contract PrivateBalance {
             // We do not check the input commitments to be in the prime field, as this is done in the ZK proof verification
 
             if (aq.action == Action.Deposit) {
-                uint256 receiver_old_commitment = getBalanceCommitment(aq.receiver);
+                uint256 receiver_old_commitment = getBalanceCommitment(
+                    aq.receiver
+                );
                 if (inputs.commitments[i * 2] != 0) {
                     revert InvalidCommitment();
                 }
 
                 // compute amount commitment
-                uint256 amount_commitment = commit(amount, 0);
+                uint256 amount_commitment = poseidon2.compress([amount, 0], DS);
 
                 // Update the commitments on-chain
                 balanceCommitments[aq.receiver] = inputs.commitments[i * 2 + 1];
@@ -360,13 +407,13 @@ contract PrivateBalance {
                 // Remove the action from the queue
                 action_queue.remove(index);
             } else if (aq.action == Action.Withdraw) {
-                uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
+                uint256 sender_old_commitment = balanceCommitments[aq.sender];
                 if (inputs.commitments[i * 2 + 1] != 0) {
                     revert InvalidCommitment();
                 }
 
                 // compute amount commitment
-                uint256 amount_commitment = commit(amount, 0);
+                uint256 amount_commitment = poseidon2.compress([amount, 0], DS);
 
                 // Update the commitments on-chain
                 balanceCommitments[aq.sender] = inputs.commitments[i * 2];
@@ -384,8 +431,10 @@ contract PrivateBalance {
                 // Remove the action from the queue
                 action_queue.remove(index);
             } else if (aq.action == Action.Transfer) {
-                uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
-                uint256 receiver_old_commitment = getBalanceCommitment(aq.receiver);
+                uint256 sender_old_commitment = balanceCommitments[aq.sender];
+                uint256 receiver_old_commitment = getBalanceCommitment(
+                    aq.receiver
+                );
 
                 // Update the commitments on-chain
                 balanceCommitments[aq.sender] = inputs.commitments[i * 2];
@@ -426,12 +475,14 @@ contract PrivateBalance {
         }
     }
 
-    function read_queue(uint256 num_items)
+    function read_queue(
+        uint256 num_items
+    )
         public
         view
         returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory)
     {
-        uint256 size = action_queue.map_size() - 1; // Exclude dummy
+        uint256 size = action_queue.size - 1; // Exclude dummy
         if (num_items > size) {
             num_items = size;
         }
@@ -439,19 +490,23 @@ contract PrivateBalance {
         uint256[] memory keys = new uint256[](num_items);
         Ciphertext[] memory cts = new Ciphertext[](num_items);
 
-        Iterator it = action_queue.iterateStart();
+        uint256 it = action_queue.lowestKey;
         for (uint256 i = 0; i < num_items; i++) {
-            it = action_queue.iterateNext(it); // Doing it here already skips dummy at index 0
-            (keys[i], actions[i]) = action_queue.iterateGet(it);
+            (it, ) = action_queue.next_key(it); // Doing it here already skips dummy at index 0
+            keys[i] = it;
+            actions[i] = action_queue.get(it);
             if (actions[i].action == Action.Transfer) {
-                cts[i] = shares[keys[i]];
+                cts[i] = shares[it];
             }
         }
         return (keys, actions, cts);
     }
 
     // Check if point is on curve: a*x^2 + y^2 = 1 + d*x^2*y^2
-    function isOnBabyJubJubCurve(uint256 x, uint256 y) public pure returns (bool) {
+    function isOnBabyJubJubCurve(
+        uint256 x,
+        uint256 y
+    ) public pure returns (bool) {
         if (x == 0 && y == 1) return true;
         if (x >= PRIME || y >= PRIME) return false;
 

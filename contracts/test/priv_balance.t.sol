@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {PrivateBalance} from "../src/priv_balance.sol";
-import {Action, ActionQuery} from "../src/action_queue.sol";
+import {Action, ActionQuery} from "../src/action_vector.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
 import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
 
@@ -197,16 +197,19 @@ contract PrivateBalanceTest is Test {
 
         // Actions
         vm.startPrank(alice);
-        priv_balance.deposit{value: amount}();
+        uint256 index_ = priv_balance.deposit{value: amount}();
+        console.log("Deposit action added at index:", index_);
         uint256 index = priv_balance.transfer(
             bob,
             amount_commitment,
             ciphertext
         );
+        console.log("Transfer action added at index:", index);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        priv_balance.withdraw(amount);
+        index_ = priv_balance.withdraw(amount);
+        console.log("Withdraw action added at index:", index_);
         vm.stopPrank();
 
         // Check that ciphertexts are stored correctly
