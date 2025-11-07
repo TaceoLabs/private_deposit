@@ -1,5 +1,6 @@
 pub mod ae;
 pub mod priv_balance;
+pub mod token;
 
 use std::array;
 

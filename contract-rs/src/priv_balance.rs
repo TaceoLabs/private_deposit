@@ -168,8 +168,8 @@ impl PrivateBalanceContract {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
-            .deposit()
-            .value(crate::field_to_u256(amount))
+            .deposit(crate::field_to_u256(amount))
+            // .value(crate::field_to_u256(amount))
             .send()
             .await
             .context("while broadcasting to network")?
@@ -442,8 +442,12 @@ impl PrivateBalanceContract {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
-            .setBalancesForDemo(addresses, balances)
-            .value(crate::field_to_u256(total_balances_amount))
+            .setBalancesForDemo(
+                addresses,
+                balances,
+                crate::field_to_u256(total_balances_amount),
+            )
+            // .value(crate::field_to_u256(total_balances_amount))
             .send()
             .await
             .context("while broadcasting to network")?

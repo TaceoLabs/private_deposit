@@ -6,12 +6,16 @@ import {PrivateBalance} from "../src/priv_balance.sol";
 import {Action, ActionQuery} from "../src/action_vector.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
 import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
+import {USDCToken} from "../src/token.sol";
 
 contract PrivateBalanceTest is Test {
     PrivateBalance public priv_balance;
     Groth16Verifier public verifier;
     Poseidon2T2_BN254 public poseidon2;
+    USDCToken public token;
 
+    address alice = address(0x1);
+    address bob = address(0x2);
     address mpcAdress = address(0x4);
 
     // MPC Public Keys
@@ -48,16 +52,35 @@ contract PrivateBalanceTest is Test {
 
     uint256 public constant BATCH_SIZE = 50;
 
+    function deal_tokens(address to, uint256 amount) internal {
+        // vm.deal(to, amount);
+        token.transfer(to, amount);
+    }
+
+    function give_allowance(address from, address to, uint256 amount) internal {
+        vm.startPrank(from);
+        token.approve(to, amount);
+        vm.stopPrank();
+    }
+
     function setUp() public {
         verifier = new Groth16Verifier();
         poseidon2 = new Poseidon2T2_BN254();
-        priv_balance =
-            new PrivateBalance(address(verifier), address(poseidon2), mpcAdress, mpc_pk1, mpc_pk2, mpc_pk3, true);
+        token = new USDCToken(1_000_000 ether);
+
+        priv_balance = new PrivateBalance(
+            address(verifier), address(poseidon2), address(token), mpcAdress, mpc_pk1, mpc_pk2, mpc_pk3, true
+        );
+
+        give_allowance(address(this), address(priv_balance), type(uint256).max);
+        give_allowance(alice, address(priv_balance), type(uint256).max);
     }
 
     function testRetrieveFunds() public {
-        vm.deal(address(this), 10 ether);
-        priv_balance.deposit{value: 1 ether}();
+        deal_tokens(address(this), 10 ether);
+        priv_balance.deposit(1 ether);
+        assertEq(token.balanceOf(address(priv_balance)), 1 ether);
+        // priv_balance.deposit{value: 1 ether}();
 
         vm.expectRevert();
         priv_balance.retrieveFunds();
@@ -66,13 +89,16 @@ contract PrivateBalanceTest is Test {
         priv_balance.retrieveFunds();
         vm.stopPrank();
 
-        assertEq(address(priv_balance).balance, 0);
-        assertEq(address(mpcAdress).balance, 1 ether);
+        // assertEq(address(priv_balance).balance, 0);
+        // assertEq(address(mpcAdress).balance, 1 ether);
+        assertEq(token.balanceOf(address(priv_balance)), 0);
+        assertEq(token.balanceOf(address(mpcAdress)), 1 ether);
     }
 
     function testDeposit() public {
-        vm.deal(address(this), 10 ether);
-        uint256 index = priv_balance.deposit{value: 1 ether}();
+        deal_tokens(address(this), 10 ether);
+        uint256 index = priv_balance.deposit(1 ether);
+        // uint256 index = priv_balance.deposit{value: 1 ether}();
         console.log("Deposit action added at index:", index);
 
         ActionQuery memory query = priv_balance.getActionAtIndex(index);
@@ -133,9 +159,6 @@ contract PrivateBalanceTest is Test {
     }
 
     function testProcessMPC() public {
-        address alice = address(0x1);
-        address bob = address(0x2);
-
         uint256 amount = 1 ether;
         ///////////////////////////////////////////////////////////////////////
         // Take the following part from the testcases generation script
@@ -172,11 +195,12 @@ contract PrivateBalanceTest is Test {
 
         // Initial balances
         assertEq(bob.balance, 0);
-        vm.deal(alice, amount);
+        deal_tokens(alice, amount);
 
         // Actions
         vm.startPrank(alice);
-        uint256 index_ = priv_balance.deposit{value: amount}();
+        // uint256 index_ = priv_balance.deposit{value: amount}();
+        uint256 index_ = priv_balance.deposit(amount);
         console.log("Deposit action added at index:", index_);
         uint256 index = priv_balance.transfer(bob, amount_commitment, ciphertext);
         console.log("Transfer action added at index:", index);
@@ -220,9 +244,12 @@ contract PrivateBalanceTest is Test {
         priv_balance.processMPC(inputs, proof);
         vm.stopPrank();
 
-        assertEq(address(priv_balance).balance, 0);
-        assertEq(alice.balance, 0);
-        assertEq(bob.balance, amount);
+        // assertEq(address(priv_balance).balance, 0);
+        // assertEq(alice.balance, 0);
+        // assertEq(bob.balance, amount);
+        assertEq(token.balanceOf(address(priv_balance)), 0);
+        assertEq(token.balanceOf(alice), 0);
+        assertEq(token.balanceOf(bob), amount);
 
         assertEq(priv_balance.getActionQueueSize(), 1);
 

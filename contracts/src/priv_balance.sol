@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/console.sol";
+// import "forge-std/console.sol";
 // import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_vector.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -25,6 +26,8 @@ contract PrivateBalance {
     IGroth16Verifier public immutable verifier;
     // The poseidon2 contract
     Poseidon2T2_BN254 public immutable poseidon2;
+    // The token we use
+    ERC20 public immutable token;
 
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
@@ -89,6 +92,7 @@ contract PrivateBalance {
     constructor(
         address _verifierAddress,
         address _poseidon2Address,
+        address _tokenAddress,
         address _mpcAdress,
         BabyJubJubElement memory _mpc_pk1,
         BabyJubJubElement memory _mpc_pk2,
@@ -112,6 +116,7 @@ contract PrivateBalance {
 
         verifier = IGroth16Verifier(_verifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
+        token = ERC20(_tokenAddress);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
         action_queue.push(aq); // Dummy action at index 0
@@ -148,7 +153,10 @@ contract PrivateBalance {
 
     // This initializes the mapping for demo purposes so that we do not need to deposit for each user. This simplifies the demo setup such that we do not need to give each wallet some funds to call deposit().
     // It is intended that during this function call the setup party of the demo deposits enough funds to the contract to back these balances.
-    function setBalancesForDemo(address[] calldata addresses, uint256[] calldata commitments) public payable onlyMPC {
+    function setBalancesForDemo(address[] calldata addresses, uint256[] calldata commitments, uint256 total_balance)
+        public
+        onlyMPC
+    {
         if (addresses.length != commitments.length) {
             revert InvalidParameters();
         }
@@ -159,6 +167,7 @@ contract PrivateBalance {
             }
             balanceCommitments[addresses[i]] = commitments[i];
         }
+        token.transferFrom(msg.sender, address(this), total_balance);
     }
 
     function getBalanceCommitment(address user) public view returns (uint256) {
@@ -194,13 +203,12 @@ contract PrivateBalance {
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
     // Remove for a real deployment
-    function retrieveFunds() public payable onlyMPC {
-        payable(mpcAdress).transfer(address(this).balance);
+    function retrieveFunds() public onlyMPC {
+        token.transfer(mpcAdress, token.balanceOf(address(this)));
     }
 
-    function deposit() public payable demoWhitelist returns (uint256) {
+    function deposit(uint256 amount) public demoWhitelist returns (uint256) {
         address receiver = msg.sender;
-        uint256 amount = msg.value;
         // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
         if (amount > 0xFFFFFFFFFFFFFFFFFFFF) {
             revert InvalidAmount();
@@ -211,6 +219,9 @@ contract PrivateBalance {
 
         ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
         action_queue.push(aq);
+
+        token.transferFrom(receiver, address(this), amount);
+
         return action_queue.highest_key();
     }
 
@@ -322,7 +333,7 @@ contract PrivateBalance {
     // This function processes a batch of actions, updates the commitments,
     // and removes the actions from the queue.
     // Deposit and Withdraw are rewritten to be transfers
-    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public payable onlyMPC {
+    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public onlyMPC {
         uint256[BATCH_SIZE * 5] memory commitments;
 
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
@@ -373,7 +384,7 @@ contract PrivateBalance {
                 commitments[i * 5 + 4] = amount_commitment;
 
                 // Send the actual tokens
-                payable(aq.sender).transfer(amount);
+                token.transfer(aq.sender, amount);
 
                 // Remove the action from the queue
                 action_queue.remove(index);
