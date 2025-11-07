@@ -264,16 +264,16 @@ contract PrivateBalance {
         return index;
     }
 
-    // TODO This function is only used for demo to make it easier to register balances. It does not check a signature of the sender_pk.
+    // TODO This function is only used for demo to make it easier to register transactions (we do not need to fund a lot of different wallets to pay the gas costs). It does not check a signature of the sender_pk and the ciphertexts are assumed to be given to the MPC network off-chain.
     function transferBatch(
         address[] calldata senders,
         address[] calldata receivers,
-        uint256[] calldata amount_commitments,
-        Ciphertext[] calldata ciphertexts
+        uint256[] calldata amount_commitments
+        // Ciphertext[] calldata ciphertexts
     ) public onlyMPC returns (uint256[] memory) {
         if (
             senders.length != receivers.length || receivers.length != amount_commitments.length
-                || receivers.length != ciphertexts.length
+            // || receivers.length != ciphertexts.length
         ) {
             revert InvalidParameters();
         }
@@ -291,21 +291,21 @@ contract PrivateBalance {
             }
             // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
-            if (!isOnBabyJubJubCurve(ciphertexts[i].sender_pk.x, ciphertexts[i].sender_pk.y)) {
-                revert NotOnCurve();
-            }
+            // if (!isOnBabyJubJubCurve(ciphertexts[i].sender_pk.x, ciphertexts[i].sender_pk.y)) {
+            //     revert NotOnCurve();
+            // }
 
-            if (ciphertexts[i].amount[0] >= PRIME) revert NotInPrimeField();
-            if (ciphertexts[i].amount[1] >= PRIME) revert NotInPrimeField();
-            if (ciphertexts[i].amount[2] >= PRIME) revert NotInPrimeField();
-            if (ciphertexts[i].r[0] >= PRIME) revert NotInPrimeField();
-            if (ciphertexts[i].r[1] >= PRIME) revert NotInPrimeField();
-            if (ciphertexts[i].r[2] >= PRIME) revert NotInPrimeField();
+            // if (ciphertexts[i].amount[0] >= PRIME) revert NotInPrimeField();
+            // if (ciphertexts[i].amount[1] >= PRIME) revert NotInPrimeField();
+            // if (ciphertexts[i].amount[2] >= PRIME) revert NotInPrimeField();
+            // if (ciphertexts[i].r[0] >= PRIME) revert NotInPrimeField();
+            // if (ciphertexts[i].r[1] >= PRIME) revert NotInPrimeField();
+            // if (ciphertexts[i].r[2] >= PRIME) revert NotInPrimeField();
 
             ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
             action_queue.push(aq);
             uint256 index = action_queue.highest_key();
-            shares[index] = ciphertexts[i];
+            // shares[index] = ciphertexts[i];
             indices[i] = index;
         }
         return indices;

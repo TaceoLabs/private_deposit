@@ -315,11 +315,11 @@ impl PrivateBalanceContract {
         from: &[Address],
         to: &[Address],
         amount: &[F],
-        ciphertext: &[Ciphertext],
+        // ciphertext: &[Ciphertext],
     ) -> eyre::Result<TxHash> {
         assert_eq!(from.len(), to.len());
         assert_eq!(from.len(), amount.len());
-        assert_eq!(from.len(), ciphertext.len());
+        // assert_eq!(from.len(), ciphertext.len());
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
@@ -327,7 +327,7 @@ impl PrivateBalanceContract {
                 from.to_vec(),
                 to.to_vec(),
                 amount.iter().map(|x| crate::field_to_u256(*x)).collect(),
-                ciphertext.to_vec(),
+                // ciphertext.to_vec(),
             )
             .send()
             .await
