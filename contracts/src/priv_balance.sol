@@ -2,7 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
-import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
+// import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
+import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_vector.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -38,8 +39,6 @@ contract PrivateBalance {
 
     // Stores the actions which are not yet processed
     QueryMap public action_queue;
-    // Current index for inserting new actions
-    uint256 next_action_queue_index;
 
     // Stores the secret shares of the amount and randomness for a transfer
     mapping(uint256 => Ciphertext) private shares;
@@ -54,6 +53,8 @@ contract PrivateBalance {
     uint256 private constant BATCH_SIZE = 50;
     // Commitment to zero balance commit(0, 0)
     uint256 private constant ZERO_COMMITMENT = 0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
+
+    uint256 private constant DS = 0xDEADBEEF;
 
     // BabyJubJub curve parameters
     uint256 public constant A = 168700;
@@ -113,8 +114,7 @@ contract PrivateBalance {
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
-        action_queue.insert(0, aq); // Dummy action at index 0
-        next_action_queue_index = 1;
+        action_queue.push(aq); // Dummy action at index 0
     }
 
     struct BabyJubJubElement {
@@ -161,12 +161,6 @@ contract PrivateBalance {
         }
     }
 
-    function getNextFreeQueueIndex() internal returns (uint256) {
-        uint256 index = next_action_queue_index;
-        next_action_queue_index = next_action_queue_index + 1;
-        return index;
-    }
-
     function getBalanceCommitment(address user) public view returns (uint256) {
         uint256 commitment = balanceCommitments[user];
         if (commitment == 0) {
@@ -195,7 +189,7 @@ contract PrivateBalance {
         if (randomness >= PRIME) {
             revert NotInPrimeField();
         }
-        return poseidon2.compress([input, randomness], 0xDEADBEEF);
+        return poseidon2.compress([input, randomness], DS);
     }
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
@@ -216,9 +210,8 @@ contract PrivateBalance {
         }
 
         ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
-        uint256 index = getNextFreeQueueIndex();
-        action_queue.insert(index, aq);
-        return index;
+        action_queue.push(aq);
+        return action_queue.highest_key();
     }
 
     function withdraw(uint256 amount) public demoWhitelist returns (uint256) {
@@ -233,9 +226,8 @@ contract PrivateBalance {
         // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
         ActionQuery memory aq = ActionQuery(Action.Withdraw, sender, address(0), amount);
-        uint256 index = getNextFreeQueueIndex();
-        action_queue.insert(index, aq);
-        return index;
+        action_queue.push(aq);
+        return action_queue.highest_key();
     }
 
     function transfer(address receiver, uint256 amount, Ciphertext calldata ciphertext)
@@ -265,12 +257,14 @@ contract PrivateBalance {
         if (ciphertext.r[2] >= PRIME) revert NotInPrimeField();
 
         ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
-        uint256 index = getNextFreeQueueIndex();
-        action_queue.insert(index, aq);
+
+        action_queue.push(aq);
+        uint256 index = action_queue.highest_key();
         shares[index] = ciphertext;
         return index;
     }
 
+    // TODO This function is only used for demo to make it easier to register balances. It does not check a signature of the sender_pk.
     function transferBatch(
         address[] calldata senders,
         address[] calldata receivers,
@@ -309,8 +303,8 @@ contract PrivateBalance {
             if (ciphertexts[i].r[2] >= PRIME) revert NotInPrimeField();
 
             ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
-            uint256 index = getNextFreeQueueIndex();
-            action_queue.insert(index, aq);
+            action_queue.push(aq);
+            uint256 index = action_queue.highest_key();
             shares[index] = ciphertexts[i];
             indices[i] = index;
         }
@@ -345,7 +339,7 @@ contract PrivateBalance {
                 }
 
                 // compute amount commitment
-                uint256 amount_commitment = commit(amount, 0);
+                uint256 amount_commitment = poseidon2.compress([amount, 0], DS);
 
                 // Update the commitments on-chain
                 balanceCommitments[aq.receiver] = inputs.commitments[i * 2 + 1];
@@ -360,13 +354,13 @@ contract PrivateBalance {
                 // Remove the action from the queue
                 action_queue.remove(index);
             } else if (aq.action == Action.Withdraw) {
-                uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
+                uint256 sender_old_commitment = balanceCommitments[aq.sender];
                 if (inputs.commitments[i * 2 + 1] != 0) {
                     revert InvalidCommitment();
                 }
 
                 // compute amount commitment
-                uint256 amount_commitment = commit(amount, 0);
+                uint256 amount_commitment = poseidon2.compress([amount, 0], DS);
 
                 // Update the commitments on-chain
                 balanceCommitments[aq.sender] = inputs.commitments[i * 2];
@@ -384,7 +378,7 @@ contract PrivateBalance {
                 // Remove the action from the queue
                 action_queue.remove(index);
             } else if (aq.action == Action.Transfer) {
-                uint256 sender_old_commitment = getBalanceCommitment(aq.sender);
+                uint256 sender_old_commitment = balanceCommitments[aq.sender];
                 uint256 receiver_old_commitment = getBalanceCommitment(aq.receiver);
 
                 // Update the commitments on-chain
@@ -400,7 +394,7 @@ contract PrivateBalance {
 
                 // Remove the action from the queue
                 action_queue.remove(index);
-                delete shares[index];
+                // delete shares[index]; // Actually costs more gas
             } else if (aq.action == Action.Dummy) {
                 // Do nothing, just add zeros to the commitments
                 if (inputs.commitments[i * 2] != 0) {
@@ -431,7 +425,7 @@ contract PrivateBalance {
         view
         returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory)
     {
-        uint256 size = action_queue.map_size() - 1; // Exclude dummy
+        uint256 size = action_queue.size - 1; // Exclude dummy
         if (num_items > size) {
             num_items = size;
         }
@@ -439,12 +433,13 @@ contract PrivateBalance {
         uint256[] memory keys = new uint256[](num_items);
         Ciphertext[] memory cts = new Ciphertext[](num_items);
 
-        Iterator it = action_queue.iterateStart();
+        uint256 it = action_queue.lowestKey;
         for (uint256 i = 0; i < num_items; i++) {
-            it = action_queue.iterateNext(it); // Doing it here already skips dummy at index 0
-            (keys[i], actions[i]) = action_queue.iterateGet(it);
+            (it,) = action_queue.next_key(it); // Doing it here already skips dummy at index 0
+            keys[i] = it;
+            actions[i] = action_queue.get(it);
             if (actions[i].action == Action.Transfer) {
-                cts[i] = shares[keys[i]];
+                cts[i] = shares[it];
             }
         }
         return (keys, actions, cts);
