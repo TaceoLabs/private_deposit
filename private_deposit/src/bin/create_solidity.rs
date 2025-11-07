@@ -165,7 +165,7 @@ fn test_process_mpc<R: Rng + CryptoRng>(
                     rep3_states.push(Rep3State::new(net, A2BType::default())?);
                 }
 
-                let (_sender_read, _receiver_read, proof, public_inputs) = map
+                let (_sender_read, _receiver_read, proof, public_inputs, _proof_time) = map
                     .process_queue_with_groth16_proof(
                         transaction,
                         proof_schema,

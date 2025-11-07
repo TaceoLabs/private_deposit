@@ -17,6 +17,7 @@ use mpc_core::protocols::rep3_ring::{self, Rep3RingShare};
 use mpc_core::serde_compat::{ark_de, ark_se};
 use mpc_net::Network;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use super::Curve;
 use super::F;
@@ -492,14 +493,17 @@ where
         Vec<DepositValueShare<F>>,
         Proof<Curve>,
         Vec<F>,
+        Duration,
     )> {
         let (sender_new, receiver_new, witness) =
             self.process_queue_with_r1cs_witness(queue, proof_schema, nets, rep3_states)?;
 
+        let start = Instant::now();
         let (proof, public_inputs) = r1cs::prove(cs, pk, witness, &nets[0], &nets[1])
             .context("while generating Groth16 proof")?;
+        let duration = start.elapsed();
 
-        Ok((sender_new, receiver_new, proof, public_inputs))
+        Ok((sender_new, receiver_new, proof, public_inputs, duration))
     }
 }
 
@@ -634,8 +638,8 @@ mod tests {
                             rep3_states.push(Rep3State::new(net, A2BType::default()).unwrap());
                         }
 
-                        let (_sender_read, _receiver_read, proof, public_inputs) = map
-                            .process_queue_with_groth16_proof(
+                        let (_sender_read, _receiver_read, proof, public_inputs, _proof_duration) =
+                            map.process_queue_with_groth16_proof(
                                 transaction,
                                 &proof_schema,
                                 &cs,
