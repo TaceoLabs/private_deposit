@@ -227,6 +227,6 @@ contract PrivateBalanceTest is Test {
         assertEq(priv_balance.getActionQueueSize(), 1);
 
         cipher = priv_balance.getCiphertextAtIndex(index);
-        // assertEq(cipher.amount[0], 0);
+        // assertEq(cipher.amount[0], 0); // We don't remove anymore, since it costs more gas
     }
 }
