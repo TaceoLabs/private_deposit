@@ -22,14 +22,17 @@ struct IndexValue {
 }
 
 struct QueryMap {
-    IndexValue[] data;
+    mapping(uint256 => IndexValue) data;
+    uint256 data_length;
     uint256 lowestKey;
     uint256 size;
 }
 
 library QueryMapLib {
     function push(QueryMap storage self, ActionQuery memory value) public {
-        self.data.push(IndexValue(true, value));
+        uint256 key = self.data_length;
+        self.data[key] = IndexValue(true, value);
+        self.data_length++;
         self.size++;
     }
 
@@ -45,18 +48,18 @@ library QueryMapLib {
     }
 
     function highest_key(QueryMap storage self) public view returns (uint256) {
-        return self.data.length - 1;
+        return self.data_length - 1;
     }
 
     function remove(QueryMap storage self, uint256 key) public returns (bool success) {
-        if (key >= self.data.length || !self.data[key].present) {
+        if (key >= self.data_length || !self.data[key].present) {
             return false;
         }
         delete self.data[key];
         self.size--;
         if (key == self.lowestKey) {
             // Update lowestKey
-            while (self.lowestKey < self.data.length && !self.data[self.lowestKey].present) {
+            while (self.lowestKey < self.data_length && !self.data[self.lowestKey].present) {
                 self.lowestKey++;
             }
         }
@@ -65,10 +68,10 @@ library QueryMapLib {
 
     function next_key(QueryMap storage self, uint256 currentKey) public view returns (uint256, bool) {
         uint256 nextKey = currentKey + 1;
-        while (nextKey < self.data.length && !self.data[nextKey].present) {
+        while (nextKey < self.data_length && !self.data[nextKey].present) {
             nextKey++;
         }
-        if (nextKey >= self.data.length) {
+        if (nextKey >= self.data_length) {
             return (0, false);
         }
         return (nextKey, true);
