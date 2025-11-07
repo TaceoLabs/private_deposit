@@ -449,7 +449,7 @@ contract PrivateBalance {
 
                 // Remove the action from the queue
                 action_queue.remove(index);
-                delete shares[index];
+                // delete shares[index]; // Actually costs more gas
             } else if (aq.action == Action.Dummy) {
                 // Do nothing, just add zeros to the commitments
                 if (inputs.commitments[i * 2] != 0) {
