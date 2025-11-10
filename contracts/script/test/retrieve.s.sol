@@ -13,8 +13,9 @@ contract PrivateBalanceScript is Script {
     }
 
     function run() public {
+        address receiver = vm.envAddress("ADDRESS");
         vm.startBroadcast();
-        priv_balance.retrieveFunds();
+        priv_balance.retrieveFunds(receiver);
         vm.stopBroadcast();
     }
 }

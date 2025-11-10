@@ -53,7 +53,6 @@ contract PrivateBalanceTest is Test {
     uint256 public constant BATCH_SIZE = 50;
 
     function deal_tokens(address to, uint256 amount) internal {
-        // vm.deal(to, amount);
         token.transfer(to, amount);
     }
 
@@ -80,17 +79,14 @@ contract PrivateBalanceTest is Test {
         deal_tokens(address(this), 10 ether);
         priv_balance.deposit(1 ether);
         assertEq(token.balanceOf(address(priv_balance)), 1 ether);
-        // priv_balance.deposit{value: 1 ether}();
 
         vm.expectRevert();
-        priv_balance.retrieveFunds();
+        priv_balance.retrieveFunds(address(mpcAdress));
 
         vm.startPrank(mpcAdress);
-        priv_balance.retrieveFunds();
+        priv_balance.retrieveFunds(address(mpcAdress));
         vm.stopPrank();
 
-        // assertEq(address(priv_balance).balance, 0);
-        // assertEq(address(mpcAdress).balance, 1 ether);
         assertEq(token.balanceOf(address(priv_balance)), 0);
         assertEq(token.balanceOf(address(mpcAdress)), 1 ether);
     }
@@ -98,7 +94,6 @@ contract PrivateBalanceTest is Test {
     function testDeposit() public {
         deal_tokens(address(this), 10 ether);
         uint256 index = priv_balance.deposit(1 ether);
-        // uint256 index = priv_balance.deposit{value: 1 ether}();
         console.log("Deposit action added at index:", index);
 
         ActionQuery memory query = priv_balance.getActionAtIndex(index);
@@ -199,7 +194,6 @@ contract PrivateBalanceTest is Test {
 
         // Actions
         vm.startPrank(alice);
-        // uint256 index_ = priv_balance.deposit{value: amount}();
         uint256 index_ = priv_balance.deposit(amount);
         console.log("Deposit action added at index:", index_);
         uint256 index = priv_balance.transfer(bob, amount_commitment, ciphertext);
@@ -244,9 +238,6 @@ contract PrivateBalanceTest is Test {
         priv_balance.processMPC(inputs, proof);
         vm.stopPrank();
 
-        // assertEq(address(priv_balance).balance, 0);
-        // assertEq(alice.balance, 0);
-        // assertEq(bob.balance, amount);
         assertEq(token.balanceOf(address(priv_balance)), 0);
         assertEq(token.balanceOf(alice), 0);
         assertEq(token.balanceOf(bob), amount);

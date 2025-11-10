@@ -140,11 +140,11 @@ impl PrivateBalanceContract {
         crate::u256_to_usize(size)
     }
 
-    pub async fn retrieve_funds(&self) -> eyre::Result<TxHash> {
+    pub async fn retrieve_funds(&self, receiver: Address) -> eyre::Result<TxHash> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
-            .retrieveFunds()
+            .retrieveFunds(receiver)
             .send()
             .await
             .context("while broadcasting to network")?
@@ -169,7 +169,6 @@ impl PrivateBalanceContract {
 
         let pending_tx = contract
             .deposit(crate::field_to_u256(amount))
-            // .value(crate::field_to_u256(amount))
             .send()
             .await
             .context("while broadcasting to network")?
@@ -447,7 +446,6 @@ impl PrivateBalanceContract {
                 balances,
                 crate::field_to_u256(total_balances_amount),
             )
-            // .value(crate::field_to_u256(total_balances_amount))
             .send()
             .await
             .context("while broadcasting to network")?

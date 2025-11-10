@@ -566,7 +566,13 @@
   {
     "type": "function",
     "name": "retrieveFunds",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "receiver",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -741,6 +747,11 @@
   {
     "type": "error",
     "name": "CannotRemoveDummyAction",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ERC20Failed",
     "inputs": []
   },
   {

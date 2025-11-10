@@ -74,6 +74,7 @@ contract PrivateBalance {
     error InvalidCommitment();
     error NotOnCurve();
     error InvalidParameters();
+    error ERC20Failed();
 
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
@@ -167,7 +168,9 @@ contract PrivateBalance {
             }
             balanceCommitments[addresses[i]] = commitments[i];
         }
-        token.transferFrom(msg.sender, address(this), total_balance);
+        if (!token.transferFrom(msg.sender, address(this), total_balance)) {
+            revert ERC20Failed();
+        }
     }
 
     function getBalanceCommitment(address user) public view returns (uint256) {
@@ -203,8 +206,10 @@ contract PrivateBalance {
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
     // Remove for a real deployment
-    function retrieveFunds() public onlyMPC {
-        token.transfer(mpcAdress, token.balanceOf(address(this)));
+    function retrieveFunds(address receiver) public onlyMPC {
+        if (!token.transfer(receiver, token.balanceOf(address(this)))) {
+            revert ERC20Failed();
+        }
     }
 
     function deposit(uint256 amount) public demoWhitelist returns (uint256) {
@@ -220,7 +225,9 @@ contract PrivateBalance {
         ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
         action_queue.push(aq);
 
-        token.transferFrom(receiver, address(this), amount);
+        if (!token.transferFrom(receiver, address(this), amount)) {
+            revert ERC20Failed();
+        }
 
         return action_queue.highest_key();
     }
@@ -384,7 +391,9 @@ contract PrivateBalance {
                 commitments[i * 5 + 4] = amount_commitment;
 
                 // Send the actual tokens
-                token.transfer(aq.sender, amount);
+                if (!token.transfer(aq.sender, amount)) {
+                    revert ERC20Failed();
+                }
 
                 // Remove the action from the queue
                 action_queue.remove(index);
