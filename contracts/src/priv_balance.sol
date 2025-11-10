@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 // import "forge-std/console.sol";
 // import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_vector.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -27,7 +27,7 @@ contract PrivateBalance {
     // The poseidon2 contract
     Poseidon2T2_BN254 public immutable poseidon2;
     // The token we use
-    ERC20 public immutable token;
+    IERC20 public immutable token;
 
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
@@ -117,7 +117,7 @@ contract PrivateBalance {
 
         verifier = IGroth16Verifier(_verifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
-        token = ERC20(_tokenAddress);
+        token = IERC20(_tokenAddress);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
         action_queue.push(aq); // Dummy action at index 0
