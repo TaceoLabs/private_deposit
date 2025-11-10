@@ -51,7 +51,7 @@ contract PrivateBalanceWithDepsScript is Script {
         address verifier = deployGroth16Verifier();
         address poseidon2 = deployPoseidon2();
         address token = deployToken();
-        priv_balance = new PrivateBalance(verifier, poseidon2, mpcAddress, token, mpc_pk1, mpc_pk2, mpc_pk3, true);
+        priv_balance = new PrivateBalance(verifier, poseidon2, token, mpcAddress, mpc_pk1, mpc_pk2, mpc_pk3, true);
         vm.stopBroadcast();
 
         console.log("PrivateBalance deployed to:", address(priv_balance));
