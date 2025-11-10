@@ -751,11 +751,6 @@
   },
   {
     "type": "error",
-    "name": "ERC20Failed",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InvalidAmount",
     "inputs": []
   },
@@ -793,6 +788,17 @@
     "type": "error",
     "name": "NotOnCurve",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
   },
   {
     "type": "error",

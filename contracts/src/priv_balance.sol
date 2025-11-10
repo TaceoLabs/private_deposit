@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 // import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_vector.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -21,6 +22,7 @@ interface Poseidon2T2_BN254 {
 
 contract PrivateBalance {
     using QueryMapLib for QueryMap;
+    using SafeERC20 for IERC20;
 
     // The groth16 verifier contract
     IGroth16Verifier public immutable verifier;
@@ -74,7 +76,6 @@ contract PrivateBalance {
     error InvalidCommitment();
     error NotOnCurve();
     error InvalidParameters();
-    error ERC20Failed();
 
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
@@ -168,9 +169,7 @@ contract PrivateBalance {
             }
             balanceCommitments[addresses[i]] = commitments[i];
         }
-        if (!token.transferFrom(msg.sender, address(this), total_balance)) {
-            revert ERC20Failed();
-        }
+        token.safeTransferFrom(msg.sender, address(this), total_balance);
     }
 
     function getBalanceCommitment(address user) public view returns (uint256) {
@@ -207,9 +206,7 @@ contract PrivateBalance {
     // TODO the following is just for a demo to be able to retrieve funds after it is done
     // Remove for a real deployment
     function retrieveFunds(address receiver) public onlyMPC {
-        if (!token.transfer(receiver, token.balanceOf(address(this)))) {
-            revert ERC20Failed();
-        }
+        token.safeTransfer(receiver, token.balanceOf(address(this)));
     }
 
     function deposit(uint256 amount) public demoWhitelist returns (uint256) {
@@ -225,9 +222,7 @@ contract PrivateBalance {
         ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
         action_queue.push(aq);
 
-        if (!token.transferFrom(receiver, address(this), amount)) {
-            revert ERC20Failed();
-        }
+        token.safeTransferFrom(receiver, address(this), amount);
 
         return action_queue.highest_key();
     }
@@ -391,9 +386,7 @@ contract PrivateBalance {
                 commitments[i * 5 + 4] = amount_commitment;
 
                 // Send the actual tokens
-                if (!token.transfer(aq.sender, amount)) {
-                    revert ERC20Failed();
-                }
+                token.safeTransfer(aq.sender, amount);
 
                 // Remove the action from the queue
                 action_queue.remove(index);
