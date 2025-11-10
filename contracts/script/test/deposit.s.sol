@@ -14,7 +14,8 @@ contract PrivateBalanceScript is Script {
 
     function run() public {
         vm.startBroadcast();
-        uint256 index = priv_balance.deposit{value: 1 ether}();
+        uint256 index = priv_balance.deposit(1 ether);
+        // uint256 index = priv_balance.deposit{value: 1 ether}();
         vm.stopBroadcast();
 
         console.log("Deposit registered at index", index);
