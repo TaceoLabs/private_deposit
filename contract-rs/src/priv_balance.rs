@@ -156,7 +156,7 @@ impl PrivateBalanceContract {
             .await
             .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("round 1 done with transaction hash: {tx_hash}",);
+            tracing::info!("retrieve funds done with transaction hash: {tx_hash}",);
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -419,7 +419,7 @@ impl PrivateBalanceContract {
             .context("while waiting for receipt")?;
         if receipt.status() {
             tracing::info!(
-                "remove action done with transaction hash: {tx_hash}, gas_used: {}",
+                "Process MPC done with transaction hash: {tx_hash}, gas_used: {}",
                 receipt.gas_used
             );
         } else {
