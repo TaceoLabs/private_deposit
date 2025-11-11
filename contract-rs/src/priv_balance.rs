@@ -374,6 +374,30 @@ impl PrivateBalanceContract {
         Ok(tx_hash)
     }
 
+    pub async fn remove_all_open_actions(&self) -> eyre::Result<TxHash> {
+        let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
+
+        let pending_tx = contract
+            .removeAllOpenActions()
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .register()
+            .await
+            .context("while registering watcher for transaction")?;
+
+        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
+            .await
+            .context("while waiting for receipt")?;
+        if receipt.status() {
+            tracing::info!("remove all actions done with transaction hash: {tx_hash}",);
+        } else {
+            eyre::bail!("cannot finish transaction: {receipt:?}");
+        }
+
+        Ok(tx_hash)
+    }
+
     pub async fn process_mpc(
         &self,
         inputs: TransactionInput,

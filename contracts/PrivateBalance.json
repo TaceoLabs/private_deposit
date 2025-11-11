@@ -565,6 +565,13 @@
   },
   {
     "type": "function",
+    "name": "removeAllOpenActions",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "retrieveFunds",
     "inputs": [
       {

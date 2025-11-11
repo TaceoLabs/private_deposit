@@ -122,6 +122,7 @@ contract PrivateBalance {
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
         action_queue.push(aq); // Dummy action at index 0
+        action_queue.lowestKey = 1; // We skip the dummy in the iterator
     }
 
     struct BabyJubJubElement {
@@ -324,12 +325,21 @@ contract PrivateBalance {
         return indices;
     }
 
-    // This is in case of the MPC network knowing that an action is faulty.
-    // TODO do we need a ZK proof that the action is indeed faulty?
+    // TODO This is in case of the MPC network knowing that an action is faulty and is just here for a demo (in case something gets wrong). In a real deployment this function should either not be included, or take a ZK proof that the action is indeed invalid.
     function removeActionAtIndex(uint256 index) public onlyMPC {
         // We are not allowed to remove 0
         if (index == 0) revert CannotRemoveDummyAction();
         action_queue.remove(index);
+    }
+
+    // TODO This function is only for demo purposes to be able to clear the action queue in case something goes wrong. In a real deployment this function should not be included.
+    function removeAllOpenActions() public onlyMPC {
+        uint256 num_items = action_queue.size - 1; // Exclude dummy
+        uint256 it = action_queue.lowestKey;
+        for (uint256 i = 0; i < num_items; i++) {
+            action_queue.remove(it);
+            it = action_queue.lowestKey;
+        }
     }
 
     // This function processes a batch of actions, updates the commitments,
@@ -448,12 +458,12 @@ contract PrivateBalance {
 
         uint256 it = action_queue.lowestKey;
         for (uint256 i = 0; i < num_items; i++) {
-            (it,) = action_queue.next_key(it); // Doing it here already skips dummy at index 0
             keys[i] = it;
             actions[i] = action_queue.get(it);
             if (actions[i].action == Action.Transfer) {
                 cts[i] = shares[it];
             }
+            (it,) = action_queue.next_key(it);
         }
         return (keys, actions, cts);
     }
