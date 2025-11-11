@@ -315,7 +315,7 @@ impl PrivateBalanceContract {
         to: &[Address],
         amount: &[F],
         // ciphertext: &[Ciphertext],
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<(TxHash, Vec<U256>)> {
         assert_eq!(from.len(), to.len());
         assert_eq!(from.len(), amount.len());
         // assert_eq!(from.len(), ciphertext.len());
@@ -347,7 +347,11 @@ impl PrivateBalanceContract {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        if let Some(event) = receipt.decoded_log::<PrivateBalance::BatchAdded>() {
+            Ok((tx_hash, event.indices.to_vec()))
+        } else {
+            eyre::bail!("BatchAdded event not found in transaction receipt");
+        }
     }
 
     pub async fn remove_action_at_index(&self, index: usize) -> eyre::Result<TxHash> {

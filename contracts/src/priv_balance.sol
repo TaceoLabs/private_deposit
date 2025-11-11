@@ -77,6 +77,8 @@ contract PrivateBalance {
     error NotOnCurve();
     error InvalidParameters();
 
+    event BatchAdded(uint256[] indices);
+
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
         _;
@@ -322,7 +324,7 @@ contract PrivateBalance {
             // shares[index] = ciphertexts[i];
             indices[i] = index;
         }
-        return indices;
+        emit BatchAdded(indices);
     }
 
     // TODO This is in case of the MPC network knowing that an action is faulty and is just here for a demo (in case something gets wrong). In a real deployment this function should either not be included, or take a ZK proof that the action is indeed invalid.
