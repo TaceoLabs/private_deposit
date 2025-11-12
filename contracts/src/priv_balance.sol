@@ -65,6 +65,12 @@ contract PrivateBalance {
     uint256 public constant A = 168700;
     uint256 public constant D = 168696;
 
+    // We emit the location of the registered action indices for deposit, withdraw, and transfer
+    event Deposit(uint256 action_index);
+    event Withdraw(uint256 action_index);
+    event Transfer(uint256 action_index);
+    event TransferBatch(uint256[] action_indices);
+
     // The error codes
     error Unauthorized();
     error InvalidProof();
@@ -226,8 +232,9 @@ contract PrivateBalance {
         action_queue.push(aq);
 
         token.safeTransferFrom(receiver, address(this), amount);
-
-        return action_queue.highest_key();
+        uint256 index = action_queue.highest_key();
+        emit Deposit(index);
+        return index;
     }
 
     function withdraw(uint256 amount) public demoWhitelist returns (uint256) {
@@ -243,7 +250,9 @@ contract PrivateBalance {
 
         ActionQuery memory aq = ActionQuery(Action.Withdraw, sender, address(0), amount);
         action_queue.push(aq);
-        return action_queue.highest_key();
+        uint256 index = action_queue.highest_key();
+        emit Withdraw(index);
+        return index;
     }
 
     function transfer(address receiver, uint256 amount, Ciphertext calldata ciphertext)
@@ -277,6 +286,7 @@ contract PrivateBalance {
         action_queue.push(aq);
         uint256 index = action_queue.highest_key();
         shares[index] = ciphertext;
+        emit Transfer(index);
         return index;
     }
 
@@ -324,7 +334,8 @@ contract PrivateBalance {
             // shares[index] = ciphertexts[i];
             indices[i] = index;
         }
-        emit BatchAdded(indices);
+        emit TransferBatch(indices);
+        return indices;
     }
 
     // TODO This is in case of the MPC network knowing that an action is faulty and is just here for a demo (in case something gets wrong). In a real deployment this function should either not be included, or take a ZK proof that the action is indeed invalid.

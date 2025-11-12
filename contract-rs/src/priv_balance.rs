@@ -164,7 +164,7 @@ impl PrivateBalanceContract {
         Ok(tx_hash)
     }
 
-    pub async fn deposit(&self, amount: F) -> eyre::Result<TxHash> {
+    pub async fn deposit(&self, amount: F) -> eyre::Result<(usize, TxHash)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
@@ -185,10 +185,15 @@ impl PrivateBalanceContract {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        let result = receipt
+            .decoded_log::<PrivateBalance::Deposit>()
+            .ok_or_else(|| eyre::eyre!("no Deposit event found in transaction receipt logs"))?;
+        let action_index = crate::u256_to_usize(result.action_index)?;
+
+        Ok((action_index, tx_hash))
     }
 
-    pub async fn withdraw(&self, amount: F) -> eyre::Result<TxHash> {
+    pub async fn withdraw(&self, amount: F) -> eyre::Result<(usize, TxHash)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
@@ -209,7 +214,12 @@ impl PrivateBalanceContract {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        let result = receipt
+            .decoded_log::<PrivateBalance::Withdraw>()
+            .ok_or_else(|| eyre::eyre!("no Withdraw event found in transaction receipt logs"))?;
+        let action_index = crate::u256_to_usize(result.action_index)?;
+
+        Ok((action_index, tx_hash))
     }
 
     pub async fn get_mpc_keys(&self) -> eyre::Result<[ark_babyjubjub::EdwardsAffine; 3]> {
@@ -252,7 +262,7 @@ impl PrivateBalanceContract {
         from: Address,
         amount: F,
         ciphertext: Ciphertext,
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<(usize, TxHash)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
@@ -277,7 +287,12 @@ impl PrivateBalanceContract {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        let result = receipt
+            .decoded_log::<PrivateBalance::Transfer>()
+            .ok_or_else(|| eyre::eyre!("no Transfer event found in transaction receipt logs"))?;
+        let action_index = crate::u256_to_usize(result.action_index)?;
+
+        Ok((action_index, tx_hash))
     }
 
     pub async fn transfer(
@@ -285,7 +300,7 @@ impl PrivateBalanceContract {
         to: Address,
         amount: F,
         ciphertext: Ciphertext,
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<(usize, TxHash)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
         let pending_tx = contract
@@ -306,7 +321,12 @@ impl PrivateBalanceContract {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        let result = receipt
+            .decoded_log::<PrivateBalance::Transfer>()
+            .ok_or_else(|| eyre::eyre!("no Transfer event found in transaction receipt logs"))?;
+        let action_index = crate::u256_to_usize(result.action_index)?;
+
+        Ok((action_index, tx_hash))
     }
 
     pub async fn transfer_batched(
@@ -315,7 +335,7 @@ impl PrivateBalanceContract {
         to: &[Address],
         amount: &[F],
         // ciphertext: &[Ciphertext],
-    ) -> eyre::Result<(TxHash, Vec<U256>)> {
+    ) -> eyre::Result<(Vec<usize>, TxHash)> {
         assert_eq!(from.len(), to.len());
         assert_eq!(from.len(), amount.len());
         // assert_eq!(from.len(), ciphertext.len());
@@ -347,11 +367,20 @@ impl PrivateBalanceContract {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        if let Some(event) = receipt.decoded_log::<PrivateBalance::BatchAdded>() {
-            Ok((tx_hash, event.indices.to_vec()))
-        } else {
-            eyre::bail!("BatchAdded event not found in transaction receipt");
-        }
+        let result = receipt
+            .decoded_log::<PrivateBalance::TransferBatch>()
+            .ok_or_else(|| {
+                eyre::eyre!("no TransferBatch event found in transaction receipt logs")
+            })?;
+
+        let action_indices = result
+            .action_indices
+            .iter()
+            .cloned()
+            .map(crate::u256_to_usize)
+            .collect::<eyre::Result<Vec<usize>>>()?;
+
+        Ok((action_indices, tx_hash))
     }
 
     pub async fn remove_action_at_index(&self, index: usize) -> eyre::Result<TxHash> {
