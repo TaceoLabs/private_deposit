@@ -6,8 +6,9 @@ use crate::{
 };
 use alloy::{
     network::EthereumWallet,
-    primitives::{Address, TxHash, U256},
+    primitives::{Address, U256},
     providers::{DynProvider, Provider as _, ProviderBuilder, WsConnect},
+    rpc::types::TransactionReceipt,
     sol,
 };
 use ark_ec::{AffineRepr, CurveGroup};
@@ -140,47 +141,47 @@ impl PrivateBalanceContract {
         crate::u256_to_usize(size)
     }
 
-    pub async fn retrieve_funds(&self, receiver: Address) -> eyre::Result<TxHash> {
+    pub async fn retrieve_funds(&self, receiver: Address) -> eyre::Result<TransactionReceipt> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .retrieveFunds(receiver)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("retrieve funds done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "retrieve funds done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
-    pub async fn deposit(&self, amount: F) -> eyre::Result<(usize, TxHash)> {
+    pub async fn deposit(&self, amount: F) -> eyre::Result<(usize, TransactionReceipt)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .deposit(crate::field_to_u256(amount))
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("deposit done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "deposit done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -190,26 +191,26 @@ impl PrivateBalanceContract {
             .ok_or_else(|| eyre::eyre!("no Deposit event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
-        Ok((action_index, tx_hash))
+        Ok((action_index, receipt))
     }
 
-    pub async fn withdraw(&self, amount: F) -> eyre::Result<(usize, TxHash)> {
+    pub async fn withdraw(&self, amount: F) -> eyre::Result<(usize, TransactionReceipt)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .withdraw(crate::field_to_u256(amount))
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("withdraw done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "withdraw done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -219,7 +220,7 @@ impl PrivateBalanceContract {
             .ok_or_else(|| eyre::eyre!("no Withdraw event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
-        Ok((action_index, tx_hash))
+        Ok((action_index, receipt))
     }
 
     pub async fn get_mpc_keys(&self) -> eyre::Result<[ark_babyjubjub::EdwardsAffine; 3]> {
@@ -262,25 +263,23 @@ impl PrivateBalanceContract {
         from: Address,
         amount: F,
         ciphertext: Ciphertext,
-    ) -> eyre::Result<(usize, TxHash)> {
+    ) -> eyre::Result<(usize, TransactionReceipt)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .transfer(to, crate::field_to_u256(amount), ciphertext)
             .from(from)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
             tracing::info!(
-                "transfer done with transaction hash: {tx_hash:?}, gas used: {}",
+                "transfer done with transaction hash: {}, gas used: {}",
+                receipt.transaction_hash,
                 receipt.gas_used
             );
         } else {
@@ -292,7 +291,7 @@ impl PrivateBalanceContract {
             .ok_or_else(|| eyre::eyre!("no Transfer event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
-        Ok((action_index, tx_hash))
+        Ok((action_index, receipt))
     }
 
     pub async fn transfer(
@@ -300,23 +299,23 @@ impl PrivateBalanceContract {
         to: Address,
         amount: F,
         ciphertext: Ciphertext,
-    ) -> eyre::Result<(usize, TxHash)> {
+    ) -> eyre::Result<(usize, TransactionReceipt)> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .transfer(to, crate::field_to_u256(amount), ciphertext)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::debug!("transfer done with transaction hash: {tx_hash:?}",);
+            tracing::debug!(
+                "transfer done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
@@ -326,7 +325,7 @@ impl PrivateBalanceContract {
             .ok_or_else(|| eyre::eyre!("no Transfer event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
-        Ok((action_index, tx_hash))
+        Ok((action_index, receipt))
     }
 
     pub async fn transfer_batched(
@@ -335,32 +334,31 @@ impl PrivateBalanceContract {
         to: &[Address],
         amount: &[F],
         // ciphertext: &[Ciphertext],
-    ) -> eyre::Result<(Vec<usize>, TxHash)> {
+    ) -> eyre::Result<(Vec<usize>, TransactionReceipt)> {
         assert_eq!(from.len(), to.len());
         assert_eq!(from.len(), amount.len());
         // assert_eq!(from.len(), ciphertext.len());
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .transferBatch(
                 from.to_vec(),
                 to.to_vec(),
                 amount.iter().map(|x| crate::field_to_u256(*x)).collect(),
                 // ciphertext.to_vec(),
             )
+            .gas(5_000_000)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
             tracing::info!(
-                "transferBatch done with transaction hash: {tx_hash:?}, gas_used: {}",
+                "transferBatch done with transaction hash: {}, gas_used: {}",
+                receipt.transaction_hash,
                 receipt.gas_used
             );
         } else {
@@ -380,113 +378,112 @@ impl PrivateBalanceContract {
             .map(crate::u256_to_usize)
             .collect::<eyre::Result<Vec<usize>>>()?;
 
-        Ok((action_indices, tx_hash))
+        Ok((action_indices, receipt))
     }
 
-    pub async fn remove_action_at_index(&self, index: usize) -> eyre::Result<TxHash> {
+    pub async fn remove_action_at_index(&self, index: usize) -> eyre::Result<TransactionReceipt> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .removeActionAtIndex(crate::usize_to_u256(index))
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("remove action done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "remove action done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
-    pub async fn remove_all_open_actions(&self) -> eyre::Result<TxHash> {
+    pub async fn remove_all_open_actions(&self) -> eyre::Result<TransactionReceipt> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .removeAllOpenActions()
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("remove all actions done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "remove all actions done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
     pub async fn process_mpc(
         &self,
         inputs: TransactionInput,
         proof: Groth16Proof,
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .processMPC(inputs, proof)
+            .gas(10_000_000)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
-            .context("while registering watcher for transaction")?;
+            .context("while receiving receipt for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
             tracing::info!(
-                "Process MPC done with transaction hash: {tx_hash}, gas_used: {}",
+                "Process MPC done with transaction hash: {}, gas_used: {}",
+                receipt.transaction_hash,
                 receipt.gas_used
             );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
     pub async fn withelist_addresses_for_demo(
         &self,
         addresses: Vec<Address>,
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .whitelistForDemo(addresses)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
             .context("while registering watcher for whitelist")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("whitelist done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "whitelist done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
     pub async fn set_balances_for_demo(
@@ -494,10 +491,10 @@ impl PrivateBalanceContract {
         addresses: Vec<Address>,
         balances: Vec<U256>,
         total_balances_amount: F,
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = PrivateBalance::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .setBalancesForDemo(
                 addresses,
                 balances,
@@ -506,20 +503,20 @@ impl PrivateBalanceContract {
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
             .context("while registering watcher for set_balance")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("set_balance done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "set_balance done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish transaction: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
     pub async fn read_queue(

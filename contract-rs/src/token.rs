@@ -1,6 +1,7 @@
 use alloy::{
-    primitives::{Address, TxHash, U256},
+    primitives::{Address, U256},
     providers::DynProvider,
+    rpc::types::TransactionReceipt,
     sol,
 };
 use eyre::Context;
@@ -26,75 +27,83 @@ impl USDCTokenContract {
     }
 
     // Use U256 max value for unlimited approval
-    pub async fn approve(&self, receiver: Address, amount: U256) -> eyre::Result<TxHash> {
+    pub async fn approve(
+        &self,
+        receiver: Address,
+        amount: U256,
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = USDCToken::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .approve(receiver, amount)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
             .context("while registering watcher for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("approve done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "approve done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish approve: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
-    pub async fn mint(&self, receiver: Address, amount: U256) -> eyre::Result<TxHash> {
+    pub async fn mint(&self, receiver: Address, amount: U256) -> eyre::Result<TransactionReceipt> {
         let contract = USDCToken::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .mint(receiver, amount)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
             .context("while registering watcher for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("approve done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "approve done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish approve: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 
-    pub async fn transfer(&self, receiver: Address, amount: U256) -> eyre::Result<TxHash> {
+    pub async fn transfer(
+        &self,
+        receiver: Address,
+        amount: U256,
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = USDCToken::new(self.contract_address, self.provider.clone());
 
-        let pending_tx = contract
+        let receipt = contract
             .transfer(receiver, amount)
             .send()
             .await
             .context("while broadcasting to network")?
-            .register()
+            .get_receipt()
             .await
             .context("while registering watcher for transaction")?;
 
-        let (receipt, tx_hash) = crate::watch_receipt(self.provider.clone(), pending_tx)
-            .await
-            .context("while waiting for receipt")?;
         if receipt.status() {
-            tracing::info!("approve done with transaction hash: {tx_hash}",);
+            tracing::info!(
+                "approve done with transaction hash: {}",
+                receipt.transaction_hash
+            );
         } else {
             eyre::bail!("cannot finish approve: {receipt:?}");
         }
 
-        Ok(tx_hash)
+        Ok(receipt)
     }
 }

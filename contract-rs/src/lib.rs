@@ -4,12 +4,7 @@ pub mod token;
 
 use std::array;
 
-use alloy::{
-    primitives::{Address, TxHash, U256},
-    providers::{DynProvider, PendingTransaction, Provider as _},
-    rpc::types::TransactionReceipt,
-    transports::RpcError,
-};
+use alloy::primitives::{Address, U256};
 use ark_bn254::Bn254;
 use ark_ec::AffineRepr;
 use ark_ff::PrimeField;
@@ -88,38 +83,6 @@ impl From<Proof<Curve>> for Groth16Proof {
                 U256::from_limbs(cx.into_bigint().0),
                 U256::from_limbs(cy.into_bigint().0),
             ],
-        }
-    }
-}
-
-async fn watch_receipt(
-    provider: DynProvider,
-    mut pending_tx: PendingTransaction,
-) -> Result<(TransactionReceipt, TxHash), alloy::contract::Error> {
-    let tx_hash = pending_tx.tx_hash().to_owned();
-    // FIXME: this is a hotfix to prevent a race condition where the heartbeat would miss the
-    // block the tx was mined in
-
-    let mut interval = tokio::time::interval(provider.client().poll_interval());
-
-    loop {
-        let mut confirmed = false;
-
-        tokio::select! {
-            _ = interval.tick() => {},
-            res = &mut pending_tx => {
-                let _ = res?;
-                confirmed = true;
-            }
-        }
-
-        // try to fetch the receipt
-        if let Some(receipt) = provider.get_transaction_receipt(tx_hash).await? {
-            return Ok((receipt, tx_hash));
-        }
-
-        if confirmed {
-            return Err(alloy::contract::Error::TransportError(RpcError::NullResp));
         }
     }
 }
