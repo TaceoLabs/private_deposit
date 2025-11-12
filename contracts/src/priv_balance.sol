@@ -83,8 +83,6 @@ contract PrivateBalance {
     error NotOnCurve();
     error InvalidParameters();
 
-    event BatchAdded(uint256[] indices);
-
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
         _;
