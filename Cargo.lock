@@ -4,8 +4,8 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acir_field",
  "base64",
@@ -31,8 +31,8 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "ark-bn254",
  "ark-ff 0.5.0",
@@ -45,8 +45,8 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -60,8 +60,8 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acir",
  "blake2",
@@ -1697,8 +1697,8 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1722,8 +1722,8 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acir_field",
  "serde",
@@ -1731,8 +1731,8 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1872,8 +1872,8 @@ dependencies = [
 
 [[package]]
 name = "circom-mpc-compiler"
-version = "0.9.1"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.10.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-ec",
  "ark-ff 0.5.0",
@@ -1894,8 +1894,8 @@ dependencies = [
 
 [[package]]
 name = "circom-mpc-vm"
-version = "0.8.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.9.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
@@ -1913,8 +1913,8 @@ dependencies = [
 
 [[package]]
 name = "circom-types"
-version = "0.9.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.10.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -2006,8 +2006,8 @@ dependencies = [
 
 [[package]]
 name = "co-acvm"
-version = "0.6.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.7.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2038,8 +2038,8 @@ dependencies = [
 
 [[package]]
 name = "co-brillig"
-version = "0.3.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.4.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "acir",
  "acvm",
@@ -2057,8 +2057,8 @@ dependencies = [
 
 [[package]]
 name = "co-builder"
-version = "0.4.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.5.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2085,8 +2085,8 @@ dependencies = [
 
 [[package]]
 name = "co-circom"
-version = "0.9.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.10.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -2116,8 +2116,8 @@ dependencies = [
 
 [[package]]
 name = "co-circom-types"
-version = "0.5.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.6.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
@@ -2134,8 +2134,8 @@ dependencies = [
 
 [[package]]
 name = "co-groth16"
-version = "0.9.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.10.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -2157,8 +2157,8 @@ dependencies = [
 
 [[package]]
 name = "co-noir"
-version = "0.6.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.7.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2191,8 +2191,8 @@ dependencies = [
 
 [[package]]
 name = "co-noir-common"
-version = "0.1.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.2.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -2219,7 +2219,7 @@ dependencies = [
 [[package]]
 name = "co-noir-to-r1cs"
 version = "0.1.0"
-source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=cb40e6b2de369f1005a4efd8a79d3f0c589257a7#cb40e6b2de369f1005a4efd8a79d3f0c589257a7"
+source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=53bf34b9e730d9b2289d539524896224e96e3dfd#53bf34b9e730d9b2289d539524896224e96e3dfd"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2253,8 +2253,8 @@ dependencies = [
 
 [[package]]
 name = "co-noir-types"
-version = "0.1.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.1.1"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-ff 0.5.0",
  "eyre",
@@ -2265,8 +2265,8 @@ dependencies = [
 
 [[package]]
 name = "co-plonk"
-version = "0.6.1"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.7.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -2290,8 +2290,8 @@ dependencies = [
 
 [[package]]
 name = "co-ultrahonk"
-version = "0.5.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.6.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -3107,8 +3107,8 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "codespan-reporting 0.11.1",
  "iter-extended",
@@ -3787,8 +3787,8 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 
 [[package]]
 name = "itertools"
@@ -4089,8 +4089,8 @@ dependencies = [
 
 [[package]]
 name = "mpc-core"
-version = "0.9.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.10.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -4120,8 +4120,8 @@ dependencies = [
 
 [[package]]
 name = "mpc-net"
-version = "0.4.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.5.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "byteorder",
  "bytes",
@@ -4164,8 +4164,8 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "noir-types"
-version = "0.1.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.1.1"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -4182,8 +4182,8 @@ dependencies = [
 
 [[package]]
 name = "noir_protobuf"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "color-eyre",
  "prost",
@@ -4191,8 +4191,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4207,13 +4207,13 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "codespan-reporting 0.11.1",
@@ -4227,8 +4227,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "build-data",
@@ -4247,8 +4247,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "base64",
@@ -4265,8 +4265,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -4297,8 +4297,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -4326,8 +4326,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4337,8 +4337,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.14"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.14#60ccd48e18ad8ce50d5ecda9baf813b712145051"
+version = "1.0.0-beta.15"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
 dependencies = [
  "codespan 0.11.1",
  "serde",
@@ -6828,8 +6828,8 @@ dependencies = [
 
 [[package]]
 name = "ultrahonk"
-version = "0.5.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=9bdad2793e3ca7f82a291f9e9932cf877ef657eb#9bdad2793e3ca7f82a291f9e9932cf877ef657eb"
+version = "0.6.0"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
 dependencies = [
  "ark-bn254",
  "ark-ec",
