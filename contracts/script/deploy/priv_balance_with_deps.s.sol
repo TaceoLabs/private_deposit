@@ -39,7 +39,7 @@ contract PrivateBalanceWithDepsScript is Script {
     }
 
     function deployToken() public returns (address) {
-        USDCToken token = new USDCToken(1_000_000 ether);
+        USDCToken token = new USDCToken(10_000_000 ether);
         console.log("Token deployed to:", address(token));
         return address(token);
     }
@@ -52,6 +52,8 @@ contract PrivateBalanceWithDepsScript is Script {
         address poseidon2 = deployPoseidon2();
         address token = deployToken();
         priv_balance = new PrivateBalance(verifier, poseidon2, token, mpcAddress, mpc_pk1, mpc_pk2, mpc_pk3, true);
+
+        USDCToken(token).approve(address(priv_balance), type(uint256).max); // Approve all transactions for testing
         vm.stopBroadcast();
 
         console.log("PrivateBalance deployed to:", address(priv_balance));
