@@ -160,25 +160,6 @@ contract ConfidentialToken {
         }
     }
 
-    // This initializes the mapping for demo purposes so that we do not need to deposit for each user. This simplifies the demo setup such that we do not need to give each wallet some funds to call deposit().
-    // It is intended that during this function call the setup party of the demo deposits enough funds to the contract to back these balances.
-    function setBalancesForDemo(address[] calldata addresses, uint256[] calldata commitments, uint256 total_balance)
-        public
-        onlyMPC
-    {
-        if (addresses.length != commitments.length) {
-            revert InvalidParameters();
-        }
-
-        for (uint256 i = 0; i < addresses.length; i++) {
-            if (commitments[i] >= PRIME) {
-                revert NotInPrimeField();
-            }
-            balanceCommitments[addresses[i]] = commitments[i];
-        }
-        token.safeTransferFrom(msg.sender, address(this), total_balance);
-    }
-
     function getBalanceCommitment(address user) public view returns (uint256) {
         uint256 commitment = balanceCommitments[user];
         if (commitment == 0) {

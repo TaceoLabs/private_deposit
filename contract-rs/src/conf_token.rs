@@ -194,6 +194,40 @@ impl ConfidentialTokenContract {
         Ok((action_index, receipt))
     }
 
+    pub async fn deposit_with_sender(
+        &self,
+        from: Address,
+        amount: F,
+    ) -> eyre::Result<(usize, TransactionReceipt)> {
+        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+
+        let receipt = contract
+            .deposit(crate::field_to_u256(amount))
+            .from(from)
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .get_receipt()
+            .await
+            .context("while receiving receipt for transaction")?;
+
+        if receipt.status() {
+            tracing::info!(
+                "deposit done with transaction hash: {}",
+                receipt.transaction_hash
+            );
+        } else {
+            eyre::bail!("cannot finish transaction: {receipt:?}");
+        }
+
+        let result = receipt
+            .decoded_log::<ConfidentialToken::Deposit>()
+            .ok_or_else(|| eyre::eyre!("no Deposit event found in transaction receipt logs"))?;
+        let action_index = crate::u256_to_usize(result.action_index)?;
+
+        Ok((action_index, receipt))
+    }
+
     pub async fn withdraw(&self, amount: F) -> eyre::Result<(usize, TransactionReceipt)> {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
@@ -486,39 +520,6 @@ impl ConfidentialTokenContract {
         Ok(receipt)
     }
 
-    pub async fn set_balances_for_demo(
-        &self,
-        addresses: Vec<Address>,
-        balances: Vec<U256>,
-        total_balances_amount: F,
-    ) -> eyre::Result<TransactionReceipt> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
-
-        let receipt = contract
-            .setBalancesForDemo(
-                addresses,
-                balances,
-                crate::field_to_u256(total_balances_amount),
-            )
-            .send()
-            .await
-            .context("while broadcasting to network")?
-            .get_receipt()
-            .await
-            .context("while registering watcher for set_balance")?;
-
-        if receipt.status() {
-            tracing::info!(
-                "set_balance done with transaction hash: {}",
-                receipt.transaction_hash
-            );
-        } else {
-            eyre::bail!("cannot finish transaction: {receipt:?}");
-        }
-
-        Ok(receipt)
-    }
-
     pub async fn read_queue(
         &self,
         num_items: usize,
@@ -553,5 +554,14 @@ impl ConfidentialTokenContract {
             .call()
             .await
             .context("while calling get_ciphertext_at_index")
+    }
+
+    pub async fn get_token_address(&self) -> eyre::Result<Address> {
+        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        contract
+            .token()
+            .call()
+            .await
+            .context("while calling get_token_address")
     }
 }

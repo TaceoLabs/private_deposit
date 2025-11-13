@@ -585,29 +585,6 @@
   },
   {
     "type": "function",
-    "name": "setBalancesForDemo",
-    "inputs": [
-      {
-        "name": "addresses",
-        "type": "address[]",
-        "internalType": "address[]"
-      },
-      {
-        "name": "commitments",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "total_balance",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "token",
     "inputs": [],
     "outputs": [

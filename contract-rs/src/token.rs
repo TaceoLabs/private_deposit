@@ -55,11 +55,18 @@ impl USDCTokenContract {
         Ok(receipt)
     }
 
-    pub async fn mint(&self, receiver: Address, amount: U256) -> eyre::Result<TransactionReceipt> {
+    // Use U256 max value for unlimited approval
+    pub async fn approve_with_sender(
+        &self,
+        from: Address,
+        receiver: Address,
+        amount: U256,
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = USDCToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .mint(receiver, amount)
+            .approve(receiver, amount)
+            .from(from)
             .send()
             .await
             .context("while broadcasting to network")?
@@ -74,6 +81,30 @@ impl USDCTokenContract {
             );
         } else {
             eyre::bail!("cannot finish approve: {receipt:?}");
+        }
+
+        Ok(receipt)
+    }
+
+    pub async fn mint(&self, receiver: Address, amount: U256) -> eyre::Result<TransactionReceipt> {
+        let contract = USDCToken::new(self.contract_address, self.provider.clone());
+
+        let receipt = contract
+            .mint(receiver, amount)
+            .send()
+            .await
+            .context("while broadcasting to network")?
+            .get_receipt()
+            .await
+            .context("while registering watcher for transaction")?;
+
+        if receipt.status() {
+            tracing::info!(
+                "mint done with transaction hash: {}",
+                receipt.transaction_hash
+            );
+        } else {
+            eyre::bail!("cannot finish mint: {receipt:?}");
         }
 
         Ok(receipt)
@@ -97,11 +128,11 @@ impl USDCTokenContract {
 
         if receipt.status() {
             tracing::info!(
-                "approve done with transaction hash: {}",
+                "transfer done with transaction hash: {}",
                 receipt.transaction_hash
             );
         } else {
-            eyre::bail!("cannot finish approve: {receipt:?}");
+            eyre::bail!("cannot finish transfer: {receipt:?}");
         }
 
         Ok(receipt)
