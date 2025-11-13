@@ -20,7 +20,7 @@ interface Poseidon2T2_BN254 {
     function compress(uint256[2] memory inputs, uint256 domain_sep) external pure returns (uint256);
 }
 
-contract PrivateBalance {
+contract ConfidentialToken {
     using QueryMapLib for QueryMap;
     using SafeERC20 for IERC20;
 

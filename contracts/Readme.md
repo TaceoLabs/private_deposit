@@ -2,13 +2,13 @@
 
 ```forge build```
 
-```forge script script/priv_balance.s.sol```
+```forge script script/conf_token.s.sol```
 
 ```forge test```
 
 ```forge test -vvv```
 
-```forge build --silent && jq '.abi' out/priv_balance.sol/PrivateBalance.json > PrivateBalance.json```
+```forge build --silent && jq '.abi' out/conf_token.sol/ConfidentialToken.json > ConfidentialToken.json```
 
 ```forge build --silent && jq '.abi' out/token.sol/USDCToken.json > USDCToken.json```
 
@@ -18,7 +18,7 @@
 
 ```forge script poseidon2.s.sol --broadcast --fork-url http://127.0.0.1:8545 -vvvvv --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80```
 
-```forge script priv_balance.s.sol --broadcast --fork-url http://127.0.0.1:8545 -vvvvv --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80```
+```forge script conf_token.s.sol --broadcast --fork-url http://127.0.0.1:8545 -vvvvv --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80```
 
 ## Notes on the solidity verifier
 

@@ -40,8 +40,8 @@ t_address=${found%%$'\n'*}
 echo "Deployed at $t_address"
 
 echo "############################################"
-echo "Deploying PrivateBalance..."
-out=$(VERIFIER_ADDRESS=$v_address POSEIDON2_ADDRESS=$p_address TOKEN_ADDRESS=$t_address MPC_ADDRESS=$MPC_ADDRESS $COMMAND priv_balance.s.sol $FLAGS --private-key $PRIVATE_KEY 2>&1)
+echo "Deploying ConfidentialToken..."
+out=$(VERIFIER_ADDRESS=$v_address POSEIDON2_ADDRESS=$p_address TOKEN_ADDRESS=$t_address MPC_ADDRESS=$MPC_ADDRESS $COMMAND conf_token.s.sol $FLAGS --private-key $PRIVATE_KEY 2>&1)
 found=${out#*"deployed to: "}
 address=${found%%$'\n'*}
 echo "Deployed at $address"
@@ -55,28 +55,28 @@ out=$(TOKEN_ADDRESS=$t_address RECEIVER_ADDRESS=$ALICE $COMMAND mint_token.s.sol
 
 echo "############################################"
 echo "Approve Alice..."
-out=$(PRIV_BALANCE_ADDRESS=$address TOKEN_ADDRESS=$t_address $COMMAND approve_token.s.sol $FLAGS --private-key $ALICE_PRIVATE_KEY 2>&1)
+out=$(CONF_TOKEN_ADDRESS=$address TOKEN_ADDRESS=$t_address $COMMAND approve_token.s.sol $FLAGS --private-key $ALICE_PRIVATE_KEY 2>&1)
 cd ..
 
 # Register actions
 cd test
 echo "############################################"
 echo "Registering deposit..."
-out=$(PRIV_BALANCE_ADDRESS=$address $COMMAND deposit.s.sol $FLAGS --private-key $ALICE_PRIVATE_KEY 2>&1)
+out=$(CONF_TOKEN_ADDRESS=$address $COMMAND deposit.s.sol $FLAGS --private-key $ALICE_PRIVATE_KEY 2>&1)
 found=${out#*"at index "}
 index=${found%%$'\n'*}
 echo "Registered at index $index"
 
 echo "############################################"
 echo "Registering transfer..."
-out=$(PRIV_BALANCE_ADDRESS=$address BOB_ADDRESS=$BOB $COMMAND transfer.s.sol $FLAGS --private-key $ALICE_PRIVATE_KEY 2>&1)
+out=$(CONF_TOKEN_ADDRESS=$address BOB_ADDRESS=$BOB $COMMAND transfer.s.sol $FLAGS --private-key $ALICE_PRIVATE_KEY 2>&1)
 found=${out#*"at index "}
 index=${found%%$'\n'*}
 echo "Registered at index $index"
 
 echo "############################################"
 echo "Registering withdraw..."
-out=$(PRIV_BALANCE_ADDRESS=$address $COMMAND withdraw.s.sol $FLAGS --private-key $BOB_PRIVATE_KEY 2>&1)
+out=$(CONF_TOKEN_ADDRESS=$address $COMMAND withdraw.s.sol $FLAGS --private-key $BOB_PRIVATE_KEY 2>&1)
 found=${out#*"at index "}
 index=${found%%$'\n'*}
 echo "Registered at index $index"
@@ -86,6 +86,6 @@ cd ..
 cd test
 echo "############################################"
 echo "Processing MPC..."
-out=$(PRIV_BALANCE_ADDRESS=$address $COMMAND mpc.s.sol $FLAGS --private-key $PRIVATE_KEY 2>&1)
+out=$(CONF_TOKEN_ADDRESS=$address $COMMAND mpc.s.sol $FLAGS --private-key $PRIVATE_KEY 2>&1)
 echo "Done"
 cd ..

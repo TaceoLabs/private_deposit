@@ -25,7 +25,7 @@
       {
         "name": "_mpc_pk1",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.BabyJubJubElement",
+        "internalType": "struct ConfidentialToken.BabyJubJubElement",
         "components": [
           {
             "name": "x",
@@ -42,7 +42,7 @@
       {
         "name": "_mpc_pk2",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.BabyJubJubElement",
+        "internalType": "struct ConfidentialToken.BabyJubJubElement",
         "components": [
           {
             "name": "x",
@@ -59,7 +59,7 @@
       {
         "name": "_mpc_pk3",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.BabyJubJubElement",
+        "internalType": "struct ConfidentialToken.BabyJubJubElement",
         "components": [
           {
             "name": "x",
@@ -298,7 +298,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.Ciphertext",
+        "internalType": "struct ConfidentialToken.Ciphertext",
         "components": [
           {
             "name": "amount",
@@ -313,7 +313,7 @@
           {
             "name": "sender_pk",
             "type": "tuple",
-            "internalType": "struct PrivateBalance.BabyJubJubElement",
+            "internalType": "struct ConfidentialToken.BabyJubJubElement",
             "components": [
               {
                 "name": "x",
@@ -430,7 +430,7 @@
       {
         "name": "inputs",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.TransactionInput",
+        "internalType": "struct ConfidentialToken.TransactionInput",
         "components": [
           {
             "name": "action_index",
@@ -447,7 +447,7 @@
       {
         "name": "proof",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.Groth16Proof",
+        "internalType": "struct ConfidentialToken.Groth16Proof",
         "components": [
           {
             "name": "pA",
@@ -516,7 +516,7 @@
       {
         "name": "",
         "type": "tuple[]",
-        "internalType": "struct PrivateBalance.Ciphertext[]",
+        "internalType": "struct ConfidentialToken.Ciphertext[]",
         "components": [
           {
             "name": "amount",
@@ -531,7 +531,7 @@
           {
             "name": "sender_pk",
             "type": "tuple",
-            "internalType": "struct PrivateBalance.BabyJubJubElement",
+            "internalType": "struct ConfidentialToken.BabyJubJubElement",
             "components": [
               {
                 "name": "x",
@@ -636,7 +636,7 @@
       {
         "name": "ciphertext",
         "type": "tuple",
-        "internalType": "struct PrivateBalance.Ciphertext",
+        "internalType": "struct ConfidentialToken.Ciphertext",
         "components": [
           {
             "name": "amount",
@@ -651,7 +651,7 @@
           {
             "name": "sender_pk",
             "type": "tuple",
-            "internalType": "struct PrivateBalance.BabyJubJubElement",
+            "internalType": "struct ConfidentialToken.BabyJubJubElement",
             "components": [
               {
                 "name": "x",

@@ -44,7 +44,7 @@ fn create_action_queues<R: Rng + CryptoRng>(
 
     println!("// Sender Public Key");
     println!(
-        "PrivateBalance.BabyJubJubElement sender_key = PrivateBalance.BabyJubJubElement(
+        "ConfidentialToken.BabyJubJubElement sender_key = ConfidentialToken.BabyJubJubElement(
             {},
             {}
         );",
@@ -226,7 +226,7 @@ fn test_process_mpc<R: Rng + CryptoRng>(
     );
     println!();
     println!("// The proof");
-    println!("PrivateBalance.Groth16Proof memory proof;");
+    println!("ConfidentialToken.Groth16Proof memory proof;");
     println!("proof.pA = [{}, {}];", ax, ay);
     println!(
         "proof.pB = [[{}, {}], [{}, {}]];",
@@ -248,21 +248,21 @@ fn gen_public_keys<R: Rng + CryptoRng>(rng: &mut R) -> [ark_babyjubjub::EdwardsA
 
     println!("// MPC Public Keys");
     println!(
-        "PrivateBalance.BabyJubJubElement mpc_pk1 = PrivateBalance.BabyJubJubElement(
+        "ConfidentialToken.BabyJubJubElement mpc_pk1 = ConfidentialToken.BabyJubJubElement(
             {},
             {}
         );",
         pk1.x, pk1.y
     );
     println!(
-        "PrivateBalance.BabyJubJubElement mpc_pk2 = PrivateBalance.BabyJubJubElement(
+        "ConfidentialToken.BabyJubJubElement mpc_pk2 = ConfidentialToken.BabyJubJubElement(
             {},
             {}
         );",
         pk2.x, pk2.y
     );
     println!(
-        "PrivateBalance.BabyJubJubElement mpc_pk3 = PrivateBalance.BabyJubJubElement(
+        "ConfidentialToken.BabyJubJubElement mpc_pk3 = ConfidentialToken.BabyJubJubElement(
             {},
             {}
         );",

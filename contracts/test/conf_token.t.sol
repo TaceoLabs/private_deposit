@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {PrivateBalance} from "../src/priv_balance.sol";
+import {ConfidentialToken} from "../src/conf_token.sol";
 import {Action, ActionQuery} from "../src/action_vector.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
 import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
 import {USDCToken} from "../src/token.sol";
 
-contract PrivateBalanceTest is Test {
-    PrivateBalance public priv_balance;
+contract ConfidentialTokenTest is Test {
+    ConfidentialToken public conf_token;
     Groth16Verifier public verifier;
     Poseidon2T2_BN254 public poseidon2;
     USDCToken public token;
@@ -19,22 +19,22 @@ contract PrivateBalanceTest is Test {
     address mpcAdress = address(0x4);
 
     // MPC Public Keys
-    PrivateBalance.BabyJubJubElement mpc_pk1 = PrivateBalance.BabyJubJubElement(
+    ConfidentialToken.BabyJubJubElement mpc_pk1 = ConfidentialToken.BabyJubJubElement(
         18327386459449316261583862697000176637638391765809617634439462209982948418034,
         15354572660754000758598766963334959211735034910036035049973891316846535514308
     );
-    PrivateBalance.BabyJubJubElement mpc_pk2 = PrivateBalance.BabyJubJubElement(
+    ConfidentialToken.BabyJubJubElement mpc_pk2 = ConfidentialToken.BabyJubJubElement(
         12602421106157650455773350918246315481116064560358812084709638867737650728515,
         19806185260317599908779153797553700270051067264725027483113828383411852142438
     );
-    PrivateBalance.BabyJubJubElement mpc_pk3 = PrivateBalance.BabyJubJubElement(
+    ConfidentialToken.BabyJubJubElement mpc_pk3 = ConfidentialToken.BabyJubJubElement(
         21327735390005260722043380015729518050952199608547795714621193312072738959320,
         2321884067052636057092005455746434955998482736918020414679439547948463777586
     );
 
     // For a transfer action
     // Sender Public Key
-    PrivateBalance.BabyJubJubElement sender_key = PrivateBalance.BabyJubJubElement(
+    ConfidentialToken.BabyJubJubElement sender_key = ConfidentialToken.BabyJubJubElement(
         14126526673002152226685028859637341993398518531603040589075929701947081008152,
         2262429687539372424558773003960644901192543279316913065087518967280725694787
     );
@@ -47,8 +47,8 @@ contract PrivateBalanceTest is Test {
     uint256 amount2 = 9318907414941246766382086462820299264561576095244169207256108475923746065863;
     uint256 r2 = 19408893814710241131916645829673431006471358670475695934923536001569549968187;
 
-    PrivateBalance.Ciphertext ciphertext =
-        PrivateBalance.Ciphertext([amount0, amount1, amount2], [r0, r1, r2], sender_key);
+    ConfidentialToken.Ciphertext ciphertext =
+        ConfidentialToken.Ciphertext([amount0, amount1, amount2], [r0, r1, r2], sender_key);
 
     uint256 public constant BATCH_SIZE = 50;
 
@@ -67,36 +67,36 @@ contract PrivateBalanceTest is Test {
         poseidon2 = new Poseidon2T2_BN254();
         token = new USDCToken(1_000_000 ether);
 
-        priv_balance = new PrivateBalance(
+        conf_token = new ConfidentialToken(
             address(verifier), address(poseidon2), address(token), mpcAdress, mpc_pk1, mpc_pk2, mpc_pk3, true
         );
 
-        give_allowance(address(this), address(priv_balance), type(uint256).max);
-        give_allowance(alice, address(priv_balance), type(uint256).max);
+        give_allowance(address(this), address(conf_token), type(uint256).max);
+        give_allowance(alice, address(conf_token), type(uint256).max);
     }
 
     function testRetrieveFunds() public {
         deal_tokens(address(this), 10 ether);
-        priv_balance.deposit(1 ether);
-        assertEq(token.balanceOf(address(priv_balance)), 1 ether);
+        conf_token.deposit(1 ether);
+        assertEq(token.balanceOf(address(conf_token)), 1 ether);
 
         vm.expectRevert();
-        priv_balance.retrieveFunds(address(mpcAdress));
+        conf_token.retrieveFunds(address(mpcAdress));
 
         vm.startPrank(mpcAdress);
-        priv_balance.retrieveFunds(address(mpcAdress));
+        conf_token.retrieveFunds(address(mpcAdress));
         vm.stopPrank();
 
-        assertEq(token.balanceOf(address(priv_balance)), 0);
+        assertEq(token.balanceOf(address(conf_token)), 0);
         assertEq(token.balanceOf(address(mpcAdress)), 1 ether);
     }
 
     function testDeposit() public {
         deal_tokens(address(this), 10 ether);
-        uint256 index = priv_balance.deposit(1 ether);
+        uint256 index = conf_token.deposit(1 ether);
         console.log("Deposit action added at index:", index);
 
-        ActionQuery memory query = priv_balance.getActionAtIndex(index);
+        ActionQuery memory query = conf_token.getActionAtIndex(index);
         assertEq(uint256(query.action), uint256(Action.Deposit));
         assertEq(query.receiver, address(this));
         assertEq(query.sender, address(0));
@@ -104,10 +104,10 @@ contract PrivateBalanceTest is Test {
     }
 
     function testWithdraw() public {
-        uint256 index = priv_balance.withdraw(1 ether);
+        uint256 index = conf_token.withdraw(1 ether);
         console.log("Withdraw action added at index:", index);
 
-        ActionQuery memory query = priv_balance.getActionAtIndex(index);
+        ActionQuery memory query = conf_token.getActionAtIndex(index);
         assertEq(uint256(query.action), uint256(Action.Withdraw));
         assertEq(query.sender, address(this));
         assertEq(query.receiver, address(0));
@@ -115,14 +115,14 @@ contract PrivateBalanceTest is Test {
     }
 
     function testTransfer() public {
-        uint256 commit = priv_balance.commit(1 ether, 123);
-        uint256 index = priv_balance.transfer(mpcAdress, commit, ciphertext);
+        uint256 commit = conf_token.commit(1 ether, 123);
+        uint256 index = conf_token.transfer(mpcAdress, commit, ciphertext);
         console.log("Transaction action added at index:", index);
 
-        PrivateBalance.Ciphertext memory cipher = priv_balance.getCiphertextAtIndex(index);
+        ConfidentialToken.Ciphertext memory cipher = conf_token.getCiphertextAtIndex(index);
         assertNotEq(cipher.amount[0], 0);
 
-        ActionQuery memory query = priv_balance.getActionAtIndex(index);
+        ActionQuery memory query = conf_token.getActionAtIndex(index);
         assertEq(uint256(query.action), uint256(Action.Transfer));
         assertEq(query.sender, address(this));
         assertEq(query.receiver, mpcAdress);
@@ -130,23 +130,23 @@ contract PrivateBalanceTest is Test {
     }
 
     function testRemoveAction() public {
-        uint256 index = priv_balance.withdraw(1 ether);
+        uint256 index = conf_token.withdraw(1 ether);
         console.log("Withdraw action added at index:", index);
 
-        ActionQuery memory query = priv_balance.getActionAtIndex(index);
+        ActionQuery memory query = conf_token.getActionAtIndex(index);
         assertEq(uint256(query.action), uint256(Action.Withdraw));
         assertEq(query.sender, address(this));
         assertEq(query.receiver, address(0));
         assertEq(query.amount, 1 ether);
 
         vm.expectRevert();
-        priv_balance.removeActionAtIndex(index);
+        conf_token.removeActionAtIndex(index);
 
         vm.startPrank(mpcAdress);
-        priv_balance.removeActionAtIndex(index);
+        conf_token.removeActionAtIndex(index);
         vm.stopPrank();
 
-        query = priv_balance.getActionAtIndex(index);
+        query = conf_token.getActionAtIndex(index);
         assertEq(uint256(query.action), uint256(Action.Invalid));
         assertEq(query.sender, address(0));
         assertEq(query.receiver, address(0));
@@ -167,7 +167,7 @@ contract PrivateBalanceTest is Test {
         uint256 bob_withdraw_commitment = 13215961508686837023384776374239202933726030231749068377927862602099601546864;
 
         // The proof
-        PrivateBalance.Groth16Proof memory proof;
+        ConfidentialToken.Groth16Proof memory proof;
         proof.pA = [
             2692155549328219733881864725659782103889366503314143192616415429475023216338,
             7397719695643597255965727699285533576443852083251336234356429231072669662021
@@ -194,24 +194,24 @@ contract PrivateBalanceTest is Test {
 
         // Actions
         vm.startPrank(alice);
-        uint256 index_ = priv_balance.deposit(amount);
+        uint256 index_ = conf_token.deposit(amount);
         console.log("Deposit action added at index:", index_);
-        uint256 index = priv_balance.transfer(bob, amount_commitment, ciphertext);
+        uint256 index = conf_token.transfer(bob, amount_commitment, ciphertext);
         console.log("Transfer action added at index:", index);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        index_ = priv_balance.withdraw(amount);
+        index_ = conf_token.withdraw(amount);
         console.log("Withdraw action added at index:", index_);
         vm.stopPrank();
 
         // Check that ciphertexts are stored correctly
-        PrivateBalance.Ciphertext memory cipher = priv_balance.getCiphertextAtIndex(index);
+        ConfidentialToken.Ciphertext memory cipher = conf_token.getCiphertextAtIndex(index);
         assertNotEq(cipher.amount[0], 0);
 
         // Process MPC actions
         // Create inputs
-        PrivateBalance.TransactionInput memory inputs;
+        ConfidentialToken.TransactionInput memory inputs;
         // Deposit by Alice
         inputs.action_index[0] = 1;
         // inputs.commitments[0] = 0;
@@ -235,16 +235,16 @@ contract PrivateBalanceTest is Test {
         }
 
         vm.startPrank(mpcAdress);
-        priv_balance.processMPC(inputs, proof);
+        conf_token.processMPC(inputs, proof);
         vm.stopPrank();
 
-        assertEq(token.balanceOf(address(priv_balance)), 0);
+        assertEq(token.balanceOf(address(conf_token)), 0);
         assertEq(token.balanceOf(alice), 0);
         assertEq(token.balanceOf(bob), amount);
 
-        assertEq(priv_balance.getActionQueueSize(), 1);
+        assertEq(conf_token.getActionQueueSize(), 1);
 
-        cipher = priv_balance.getCiphertextAtIndex(index);
+        cipher = conf_token.getCiphertextAtIndex(index);
         // assertEq(cipher.amount[0], 0); // We don't remove anymore, since it costs more gas
     }
 }

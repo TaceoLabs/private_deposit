@@ -1,5 +1,5 @@
 pub mod ae;
-pub mod priv_balance;
+pub mod conf_token;
 pub mod token;
 
 use std::array;
@@ -10,7 +10,7 @@ use ark_ec::AffineRepr;
 use ark_ff::PrimeField;
 use ark_groth16::Proof;
 
-use crate::priv_balance::PrivateBalance::{Groth16Proof, TransactionInput};
+use crate::conf_token::ConfidentialToken::{Groth16Proof, TransactionInput};
 
 pub(crate) type F = ark_bn254::Fr;
 pub(crate) type Curve = Bn254;

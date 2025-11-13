@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {USDCToken} from "../../src/token.sol";
 
-contract PrivateBalanceScript is Script {
+contract ConfidentialTokenScript is Script {
     USDCToken public token;
 
     function setUp() public {
@@ -13,9 +13,9 @@ contract PrivateBalanceScript is Script {
     }
 
     function run() public {
-        address priv_balance_address = vm.envAddress("PRIV_BALANCE_ADDRESS");
+        address conf_token_address = vm.envAddress("CONF_TOKEN_ADDRESS");
         vm.startBroadcast();
-        token.approve(priv_balance_address, 1 ether);
+        token.approve(conf_token_address, 1 ether);
         vm.stopBroadcast();
     }
 }

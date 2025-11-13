@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {USDCToken} from "../../src/token.sol";
 
-contract PrivateBalanceScript is Script {
+contract ConfidentialTokenScript is Script {
     USDCToken public token;
 
     function setUp() public {
