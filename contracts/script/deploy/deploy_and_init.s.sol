@@ -31,7 +31,7 @@ contract ConfidentialTokenScript is Script {
         address verifier = vm.envAddress("VERIFIER_ADDRESS");
         address poseidon2 = vm.envAddress("POSEIDON2_ADDRESS");
         address tokenAddress = vm.envAddress("TOKEN_ADDRESS");
-        // address mpcAddress = vm.envAddress("MPC_ADDRESS");
+        address mpcAddress = vm.envAddress("MPC_ADDRESS");
         address deployAddress = vm.envAddress("DEPLOYER_ADDRESS");
 
         token = USDCToken(tokenAddress);
