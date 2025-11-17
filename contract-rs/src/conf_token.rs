@@ -444,6 +444,7 @@ impl ConfidentialTokenContract {
 
         let receipt = contract
             .removeAllOpenActions()
+            .gas(5_000_000)
             .send()
             .await
             .context("while broadcasting to network")?
