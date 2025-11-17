@@ -565,8 +565,14 @@
   },
   {
     "type": "function",
-    "name": "removeAllOpenActions",
-    "inputs": [],
+    "name": "removeNOpenActions",
+    "inputs": [
+      {
+        "name": "num_items",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },

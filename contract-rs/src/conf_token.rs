@@ -439,11 +439,14 @@ impl ConfidentialTokenContract {
         Ok(receipt)
     }
 
-    pub async fn remove_all_open_actions(&self) -> eyre::Result<TransactionReceipt> {
+    pub async fn remove_n_open_actions(
+        &self,
+        num_items: usize,
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .removeAllOpenActions()
+            .removeNOpenActions(crate::usize_to_u256(num_items))
             .gas(20_000_000)
             .send()
             .await
