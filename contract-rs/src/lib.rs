@@ -9,6 +9,7 @@ use ark_bn254::Bn254;
 use ark_ec::AffineRepr;
 use ark_ff::PrimeField;
 use ark_groth16::Proof;
+use serde::{Deserialize, Serialize};
 
 use crate::conf_token::ConfidentialToken::{Groth16Proof, TransactionInput};
 
@@ -87,8 +88,13 @@ impl From<Proof<Curve>> for Groth16Proof {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TransactionInputRust {
     pub action_index: Vec<usize>,
+    #[serde(
+        serialize_with = "mpc_core::serde_compat::ark_se",
+        deserialize_with = "mpc_core::serde_compat::ark_de"
+    )]
     pub commitment: Vec<F>,
 }
 

@@ -34,3 +34,4 @@ tokio = { workspace = true, features = [
     "tokio-macros",
 ] }
 tracing.workspace = true
+serde.workspace = true
