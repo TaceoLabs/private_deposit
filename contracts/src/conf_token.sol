@@ -70,6 +70,8 @@ contract ConfidentialToken {
     event Withdraw(uint256 action_index);
     event Transfer(uint256 action_index);
     event TransferBatch(uint256[] action_indices);
+    // We emit the location of the registered action indices which have been successfully processed
+    event ProcessMPC(uint256[BATCH_SIZE] action_indices);
 
     // The error codes
     error Unauthorized();
@@ -433,6 +435,7 @@ contract ConfidentialToken {
         if (!verifier.verifyProof(proof.pA, proof.pB, proof.pC, commitments)) {
             revert InvalidProof();
         }
+        emit ProcessMPC(inputs.action_index);
     }
 
     function read_queue(uint256 num_items)

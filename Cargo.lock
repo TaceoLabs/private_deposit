@@ -5460,6 +5460,7 @@ dependencies = [
  "eyre",
  "mpc-core",
  "rand 0.8.5",
+ "serde",
  "taceo-ark-babyjubjub",
  "tokio",
  "tracing",

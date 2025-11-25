@@ -743,6 +743,19 @@
   },
   {
     "type": "event",
+    "name": "ProcessMPC",
+    "inputs": [
+      {
+        "name": "action_indices",
+        "type": "uint256[50]",
+        "indexed": false,
+        "internalType": "uint256[50]"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Transfer",
     "inputs": [
       {

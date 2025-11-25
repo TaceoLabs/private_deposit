@@ -6,10 +6,11 @@ use crate::{
 };
 use alloy::{
     network::EthereumWallet,
-    primitives::{Address, U256},
+    primitives::{Address, Log, U256},
     providers::{DynProvider, Provider as _, ProviderBuilder, WsConnect},
-    rpc::types::TransactionReceipt,
+    rpc::types::{Filter, TransactionReceipt},
     sol,
+    sol_types::SolEvent,
 };
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{UniformRand, Zero};
@@ -564,5 +565,28 @@ impl ConfidentialTokenContract {
             .call()
             .await
             .context("while calling get_token_address")
+    }
+
+    pub async fn read_process_mpc_events(
+        &self,
+        n_blocks: u64, // amount of latest blocks to read from
+    ) -> eyre::Result<Vec<Log<ConfidentialToken::ProcessMPC>>> {
+        let last_block = self.provider.get_block_number().await?;
+        let from_block = last_block.saturating_sub(n_blocks);
+
+        let filter = Filter::new()
+            .address(self.contract_address)
+            .event_signature(ConfidentialToken::ProcessMPC::SIGNATURE_HASH)
+            .from_block(from_block);
+        let logs = self.provider.get_logs(&filter).await?;
+
+        let mut logs_ = Vec::with_capacity(logs.len());
+
+        for log in logs {
+            let decoded_log = log.log_decode::<ConfidentialToken::ProcessMPC>()?;
+            logs_.push(decoded_log.into_inner());
+        }
+
+        Ok(logs_)
     }
 }
