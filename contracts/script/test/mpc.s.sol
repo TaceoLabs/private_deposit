@@ -69,7 +69,7 @@ contract ConfidentialTokenScript is Script {
         }
 
         vm.startBroadcast();
-        conf_token.processMPC(inputs, proof);
+        conf_token.processMPC(inputs, proof, 123);
         vm.stopBroadcast();
     }
 }

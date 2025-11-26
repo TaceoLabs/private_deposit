@@ -70,6 +70,8 @@ contract ConfidentialToken {
     event Withdraw(uint256 action_index);
     event Transfer(uint256 action_index);
     event TransferBatch(uint256[] action_indices);
+    // We emit the location of the registered action indices which have been successfully processed
+    event ProcessedMPC(uint256 nonce, uint256[BATCH_SIZE] action_indices);
 
     // The error codes
     error Unauthorized();
@@ -337,7 +339,7 @@ contract ConfidentialToken {
     // This function processes a batch of actions, updates the commitments,
     // and removes the actions from the queue.
     // Deposit and Withdraw are rewritten to be transfers
-    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public onlyMPC {
+    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof, uint256 nonce) public onlyMPC {
         uint256[BATCH_SIZE * 5] memory commitments;
 
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
@@ -433,6 +435,7 @@ contract ConfidentialToken {
         if (!verifier.verifyProof(proof.pA, proof.pB, proof.pC, commitments)) {
             revert InvalidProof();
         }
+        emit ProcessedMPC(nonce, inputs.action_index);
     }
 
     function read_queue(uint256 num_items)

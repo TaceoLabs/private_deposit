@@ -6,10 +6,11 @@ use crate::{
 };
 use alloy::{
     network::EthereumWallet,
-    primitives::{Address, U256},
+    primitives::{Address, Log, U256},
     providers::{DynProvider, Provider as _, ProviderBuilder, WsConnect},
-    rpc::types::TransactionReceipt,
+    rpc::types::{Filter, TransactionReceipt},
     sol,
+    sol_types::SolEvent,
 };
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{UniformRand, Zero};
@@ -468,11 +469,12 @@ impl ConfidentialTokenContract {
         &self,
         inputs: TransactionInput,
         proof: Groth16Proof,
+        nonce: U256,
     ) -> eyre::Result<TransactionReceipt> {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .processMPC(inputs, proof)
+            .processMPC(inputs, proof, nonce)
             .gas(10_000_000)
             .send()
             .await
@@ -564,5 +566,35 @@ impl ConfidentialTokenContract {
             .call()
             .await
             .context("while calling get_token_address")
+    }
+
+    pub async fn read_processed_mpc_events_since(
+        &self,
+        block: u64,
+    ) -> eyre::Result<Vec<Log<ConfidentialToken::ProcessedMPC>>> {
+        let filter = Filter::new()
+            .address(self.contract_address)
+            .event_signature(ConfidentialToken::ProcessedMPC::SIGNATURE_HASH)
+            .from_block(block);
+        let logs = self.provider.get_logs(&filter).await?;
+
+        let mut logs_ = Vec::with_capacity(logs.len());
+
+        for log in logs {
+            let decoded_log = log.log_decode::<ConfidentialToken::ProcessedMPC>()?;
+            logs_.push(decoded_log.into_inner());
+        }
+
+        Ok(logs_)
+    }
+
+    pub async fn read_processed_mpc_events(
+        &self,
+        n_blocks: u64, // amount of latest blocks to read from
+    ) -> eyre::Result<Vec<Log<ConfidentialToken::ProcessedMPC>>> {
+        let last_block = self.provider.get_block_number().await?;
+        let from_block = last_block.saturating_sub(n_blocks);
+
+        self.read_processed_mpc_events_since(from_block).await
     }
 }
