@@ -10,6 +10,8 @@
 
 ```forge build --silent && jq '.abi' out/conf_token.sol/ConfidentialToken.json > ConfidentialToken.json```
 
+```forge build --silent && jq '.abi' out/conf_token_erc.sol/ConfidentialToken.json > ConfidentialTokenERC.json```
+
 ```forge build --silent && jq '.abi' out/token.sol/USDCToken.json > USDCToken.json```
 
 ## deploy

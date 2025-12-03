@@ -14,9 +14,9 @@ contract ConfidentialTokenScript is Script {
 
     function run() public {
         vm.startBroadcast();
-        uint256 index = conf_token.deposit{value: 1 ether}();
+        uint256 index = conf_token.withdraw(1 ether);
         vm.stopBroadcast();
 
-        console.log("Deposit registered at index", index);
+        console.log("Withdraw registered at index", index);
     }
 }
