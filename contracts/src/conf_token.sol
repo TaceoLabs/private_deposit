@@ -188,7 +188,7 @@ contract ConfidentialToken {
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
     // Remove for a real deployment
-    function retrieveFunds(address receiver) public payable onlyMPC {
+    function retrieveFunds(address receiver) public onlyMPC {
         payable(receiver).transfer(address(this).balance);
     }
 
@@ -332,7 +332,7 @@ contract ConfidentialToken {
     // This function processes a batch of actions, updates the commitments,
     // and removes the actions from the queue.
     // Deposit and Withdraw are rewritten to be transfers
-    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public payable onlyMPC {
+    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public onlyMPC {
         uint256[BATCH_SIZE * 5] memory commitments;
 
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
