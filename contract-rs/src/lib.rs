@@ -1,5 +1,6 @@
 pub mod ae;
 pub mod conf_token;
+pub mod conf_token_erc;
 pub mod token;
 
 use std::array;

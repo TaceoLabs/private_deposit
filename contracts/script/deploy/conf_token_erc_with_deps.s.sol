@@ -2,9 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ConfidentialToken} from "../../src/conf_token.sol";
+import {ConfidentialToken} from "../../src/conf_token_erc.sol";
 import {Groth16Verifier} from "../../src/groth16_verifier.sol";
 import {Poseidon2T2_BN254} from "../../src/poseidon2.sol";
+import {USDCToken} from "../../src/token.sol";
 
 contract ConfidentialTokenWithDepsScript is Script {
     ConfidentialToken public conf_token;
@@ -37,15 +38,24 @@ contract ConfidentialTokenWithDepsScript is Script {
         return address(verifier);
     }
 
+    function deployToken() public returns (address) {
+        USDCToken token = new USDCToken(10_000_000 ether);
+        console.log("Token deployed to:", address(token));
+        return address(token);
+    }
+
     function run() public {
         address mpcAddress = vm.envAddress("MPC_ADDRESS");
 
         vm.startBroadcast();
         address verifier = deployGroth16Verifier();
         address poseidon2 = deployPoseidon2();
-        conf_token = new ConfidentialToken(verifier, poseidon2, mpcAddress, mpc_pk1, mpc_pk2, mpc_pk3, true);
+        address token = deployToken();
+        conf_token = new ConfidentialToken(verifier, poseidon2, token, mpcAddress, mpc_pk1, mpc_pk2, mpc_pk3, true);
+
+        USDCToken(token).approve(address(conf_token), type(uint256).max); // Approve all transactions for testing
         vm.stopBroadcast();
 
-        console.log("ConfidentialToken deployed to:", address(conf_token));
+        console.log("ConfidentialToken (ERC) deployed to:", address(conf_token));
     }
 }

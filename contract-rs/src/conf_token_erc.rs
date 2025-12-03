@@ -1,6 +1,6 @@
 use crate::{
     F,
-    conf_token::ConfidentialToken::{
+    conf_token_erc::ConfidentialToken::{
         ActionQuery, BabyJubJubElement, Ciphertext, Groth16Proof, TransactionInput,
     },
 };
@@ -21,15 +21,15 @@ use rand::{CryptoRng, Rng};
 sol!(
     #[sol(rpc)]
     ConfidentialToken,
-    "../contracts/ConfidentialToken.json"
+    "../contracts/ConfidentialTokenERC.json"
 );
 
-pub struct ConfidentialTokenContract {
+pub struct ConfidentialTokenContractERC {
     pub(crate) contract_address: Address,
     pub(crate) provider: DynProvider,
 }
 
-impl ConfidentialTokenContract {
+impl ConfidentialTokenContractERC {
     pub fn new(contract_address: Address, provider: DynProvider) -> Self {
         Self {
             contract_address,
@@ -170,8 +170,7 @@ impl ConfidentialTokenContract {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .deposit()
-            .value(crate::field_to_u256(amount))
+            .deposit(crate::field_to_u256(amount))
             .send()
             .await
             .context("while broadcasting to network")?
@@ -204,8 +203,7 @@ impl ConfidentialTokenContract {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .deposit()
-            .value(crate::field_to_u256(amount))
+            .deposit(crate::field_to_u256(amount))
             .from(from)
             .send()
             .await
@@ -559,6 +557,15 @@ impl ConfidentialTokenContract {
             .call()
             .await
             .context("while calling get_ciphertext_at_index")
+    }
+
+    pub async fn get_token_address(&self) -> eyre::Result<Address> {
+        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        contract
+            .token()
+            .call()
+            .await
+            .context("while calling get_token_address")
     }
 
     pub async fn read_processed_mpc_events_since(

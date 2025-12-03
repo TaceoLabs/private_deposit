@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ConfidentialToken} from "../../src/conf_token.sol";
+import {ConfidentialToken} from "../../src/conf_token_erc.sol";
 
 contract ConfidentialTokenScript is Script {
     ConfidentialToken public conf_token;
@@ -14,7 +14,7 @@ contract ConfidentialTokenScript is Script {
 
     function run() public {
         vm.startBroadcast();
-        uint256 index = conf_token.deposit{value: 1 ether}();
+        uint256 index = conf_token.deposit(1 ether);
         vm.stopBroadcast();
 
         console.log("Deposit registered at index", index);

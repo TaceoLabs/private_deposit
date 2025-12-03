@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 // import "forge-std/console.sol";
 // import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib} from "./action_vector.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -20,11 +22,14 @@ interface Poseidon2T2_BN254 {
 
 contract ConfidentialToken {
     using QueryMapLib for QueryMap;
+    using SafeERC20 for IERC20;
 
     // The groth16 verifier contract
     IGroth16Verifier public immutable verifier;
     // The poseidon2 contract
     Poseidon2T2_BN254 public immutable poseidon2;
+    // The token we use
+    IERC20 public immutable token;
 
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
@@ -97,6 +102,7 @@ contract ConfidentialToken {
     constructor(
         address _verifierAddress,
         address _poseidon2Address,
+        address _tokenAddress,
         address _mpcAdress,
         BabyJubJubElement memory _mpc_pk1,
         BabyJubJubElement memory _mpc_pk2,
@@ -120,6 +126,7 @@ contract ConfidentialToken {
 
         verifier = IGroth16Verifier(_verifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
+        token = IERC20(_tokenAddress);
         mpcAdress = _mpcAdress;
         ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
         action_queue.push(aq); // Dummy action at index 0
@@ -188,13 +195,12 @@ contract ConfidentialToken {
 
     // TODO the following is just for a demo to be able to retrieve funds after it is done
     // Remove for a real deployment
-    function retrieveFunds(address receiver) public payable onlyMPC {
-        payable(receiver).transfer(address(this).balance);
+    function retrieveFunds(address receiver) public onlyMPC {
+        token.safeTransfer(receiver, token.balanceOf(address(this)));
     }
 
-    function deposit() public payable demoWhitelist returns (uint256) {
+    function deposit(uint256 amount) public demoWhitelist returns (uint256) {
         address receiver = msg.sender;
-        uint256 amount = msg.value;
         // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
         if (amount > 0xFFFFFFFFFFFFFFFFFFFF) {
             revert InvalidAmount();
@@ -206,6 +212,7 @@ contract ConfidentialToken {
         ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
         action_queue.push(aq);
 
+        token.safeTransferFrom(receiver, address(this), amount);
         uint256 index = action_queue.highest_key();
         emit Deposit(index);
         return index;
@@ -332,11 +339,7 @@ contract ConfidentialToken {
     // This function processes a batch of actions, updates the commitments,
     // and removes the actions from the queue.
     // Deposit and Withdraw are rewritten to be transfers
-    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof, uint256 nonce)
-        public
-        payable
-        onlyMPC
-    {
+    function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof, uint256 nonce) public onlyMPC {
         uint256[BATCH_SIZE * 5] memory commitments;
 
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
@@ -387,7 +390,7 @@ contract ConfidentialToken {
                 commitments[i * 5 + 4] = amount_commitment;
 
                 // Send the actual tokens
-                payable(aq.sender).transfer(amount);
+                token.safeTransfer(aq.sender, amount);
 
                 // Remove the action from the queue
                 action_queue.remove(index);

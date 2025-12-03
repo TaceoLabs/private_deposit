@@ -2,15 +2,17 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {ConfidentialToken} from "../src/conf_token.sol";
+import {ConfidentialToken} from "../src/conf_token_erc.sol";
 import {Action, ActionQuery} from "../src/action_vector.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
 import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
+import {USDCToken} from "../src/token.sol";
 
 contract ConfidentialTokenTest is Test {
     ConfidentialToken public conf_token;
     Groth16Verifier public verifier;
     Poseidon2T2_BN254 public poseidon2;
+    USDCToken public token;
 
     address alice = address(0x1);
     address bob = address(0x2);
@@ -51,21 +53,32 @@ contract ConfidentialTokenTest is Test {
     uint256 public constant BATCH_SIZE = 50;
 
     function deal_tokens(address to, uint256 amount) internal {
-        vm.deal(to, amount);
+        token.transfer(to, amount);
+    }
+
+    function give_allowance(address from, address to, uint256 amount) internal {
+        vm.startPrank(from);
+        token.approve(to, amount);
+        vm.stopPrank();
     }
 
     function setUp() public {
         verifier = new Groth16Verifier();
         poseidon2 = new Poseidon2T2_BN254();
+        token = new USDCToken(1_000_000 ether);
 
-        conf_token =
-            new ConfidentialToken(address(verifier), address(poseidon2), mpcAdress, mpc_pk1, mpc_pk2, mpc_pk3, true);
+        conf_token = new ConfidentialToken(
+            address(verifier), address(poseidon2), address(token), mpcAdress, mpc_pk1, mpc_pk2, mpc_pk3, true
+        );
+
+        give_allowance(address(this), address(conf_token), type(uint256).max);
+        give_allowance(alice, address(conf_token), type(uint256).max);
     }
 
     function testRetrieveFunds() public {
         deal_tokens(address(this), 10 ether);
-        conf_token.deposit{value: 1 ether}();
-        assertEq(address(conf_token).balance, 1 ether);
+        conf_token.deposit(1 ether);
+        assertEq(token.balanceOf(address(conf_token)), 1 ether);
 
         vm.expectRevert();
         conf_token.retrieveFunds(address(mpcAdress));
@@ -74,13 +87,13 @@ contract ConfidentialTokenTest is Test {
         conf_token.retrieveFunds(address(mpcAdress));
         vm.stopPrank();
 
-        assertEq(address(conf_token).balance, 0);
-        assertEq(address(mpcAdress).balance, 1 ether);
+        assertEq(token.balanceOf(address(conf_token)), 0);
+        assertEq(token.balanceOf(address(mpcAdress)), 1 ether);
     }
 
     function testDeposit() public {
         deal_tokens(address(this), 10 ether);
-        uint256 index = conf_token.deposit{value: 1 ether}();
+        uint256 index = conf_token.deposit(1 ether);
         console.log("Deposit action added at index:", index);
 
         ActionQuery memory query = conf_token.getActionAtIndex(index);
@@ -181,7 +194,7 @@ contract ConfidentialTokenTest is Test {
 
         // Actions
         vm.startPrank(alice);
-        uint256 index_ = conf_token.deposit{value: amount}();
+        uint256 index_ = conf_token.deposit(amount);
         console.log("Deposit action added at index:", index_);
         uint256 index = conf_token.transfer(bob, amount_commitment, ciphertext);
         console.log("Transfer action added at index:", index);
@@ -225,9 +238,9 @@ contract ConfidentialTokenTest is Test {
         conf_token.processMPC(inputs, proof, 123);
         vm.stopPrank();
 
-        assertEq(address(conf_token).balance, 0);
-        assertEq(alice.balance, 0);
-        assertEq(bob.balance, amount);
+        assertEq(token.balanceOf(address(conf_token)), 0);
+        assertEq(token.balanceOf(alice), 0);
+        assertEq(token.balanceOf(bob), amount);
 
         assertEq(conf_token.getActionQueueSize(), 1);
 

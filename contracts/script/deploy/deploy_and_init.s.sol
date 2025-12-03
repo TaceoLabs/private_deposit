@@ -3,11 +3,9 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {ConfidentialToken} from "../../src/conf_token.sol";
-import {USDCToken} from "../../src/token.sol";
 
 contract ConfidentialTokenScript is Script {
     ConfidentialToken public conf_token;
-    USDCToken public token;
 
     // MPC Public Keys
     ConfidentialToken.BabyJubJubElement mpc_pk1 = ConfidentialToken.BabyJubJubElement(
@@ -30,27 +28,12 @@ contract ConfidentialTokenScript is Script {
     function run() public {
         address verifier = vm.envAddress("VERIFIER_ADDRESS");
         address poseidon2 = vm.envAddress("POSEIDON2_ADDRESS");
-        address tokenAddress = vm.envAddress("TOKEN_ADDRESS");
         address mpcAddress = vm.envAddress("MPC_ADDRESS");
         address deployAddress = vm.envAddress("DEPLOYER_ADDRESS");
 
-        token = USDCToken(tokenAddress);
-
         // Deploy Wallet
         vm.startBroadcast(deployAddress);
-        conf_token =
-            new ConfidentialToken(verifier, poseidon2, tokenAddress, mpcAddress, mpc_pk1, mpc_pk2, mpc_pk3, false);
-        // Give tokens to MPC
-        if (token.balanceOf(deployAddress) < MAX_BALANCE) {
-            token.mint(address(mpcAddress), MAX_BALANCE);
-        } else {
-            token.transfer(mpcAddress, MAX_BALANCE);
-        }
-        vm.stopBroadcast();
-
-        // // MPC Wallet
-        vm.startBroadcast(mpcAddress);
-        token.approve(address(conf_token), MAX_BALANCE);
+        conf_token = new ConfidentialToken(verifier, poseidon2, mpcAddress, mpc_pk1, mpc_pk2, mpc_pk3, false);
         vm.stopBroadcast();
 
         console.log("ConfidentialToken deployed to:", address(conf_token));
