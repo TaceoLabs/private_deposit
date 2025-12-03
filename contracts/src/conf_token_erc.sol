@@ -327,13 +327,20 @@ contract ConfidentialToken {
     }
 
     // TODO This function is only for demo purposes to be able to clear the action queue in case something goes wrong. In a real deployment this function should not be included.
-    function removeAllOpenActions() public onlyMPC {
-        uint256 num_items = action_queue.size - 1; // Exclude dummy
+    function removeNOpenActions(uint256 num_items) public onlyMPC {
+        uint256 size = action_queue.size - 1; // Exclude dummy
+        if (num_items > size) {
+            num_items = size;
+        }
         uint256 it = action_queue.lowestKey;
         for (uint256 i = 0; i < num_items; i++) {
             action_queue.remove(it);
             it = action_queue.lowestKey;
         }
+    }
+
+    function queue_size() public view returns (uint256) {
+        return action_queue.size - 1; // Exclude dummy
     }
 
     // This function processes a batch of actions, updates the commitments,

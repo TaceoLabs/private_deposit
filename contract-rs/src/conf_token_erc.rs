@@ -440,12 +440,26 @@ impl ConfidentialTokenContractERC {
         Ok(receipt)
     }
 
-    pub async fn remove_all_open_actions(&self) -> eyre::Result<TransactionReceipt> {
+    pub async fn action_queue_size(&self) -> eyre::Result<usize> {
+        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+
+        let size = contract
+            .queue_size()
+            .call()
+            .await
+            .context("while calling action_queue_size")?;
+
+        crate::u256_to_usize(size)
+    }
+
+    pub async fn remove_n_open_actions(
+        &self,
+        num_items: usize,
+    ) -> eyre::Result<TransactionReceipt> {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .removeAllOpenActions()
-            .gas(20_000_000)
+            .removeNOpenActions(crate::usize_to_u256(num_items))
             .send()
             .await
             .context("while broadcasting to network")?
