@@ -222,7 +222,7 @@ contract ConfidentialTokenTest is Test {
         }
 
         vm.startPrank(mpcAdress);
-        conf_token.processMPC(inputs, proof, 123);
+        conf_token.processMPC(inputs, proof);
         vm.stopPrank();
 
         assertEq(address(conf_token).balance, 0);

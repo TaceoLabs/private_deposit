@@ -465,11 +465,6 @@
             "internalType": "uint256[2]"
           }
         ]
-      },
-      {
-        "name": "nonce",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "outputs": [],
@@ -750,12 +745,6 @@
     "type": "event",
     "name": "ProcessedMPC",
     "inputs": [
-      {
-        "name": "nonce",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
       {
         "name": "action_indices",
         "type": "uint256[50]",

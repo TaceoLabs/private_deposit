@@ -471,12 +471,11 @@ impl ConfidentialTokenContract {
         &self,
         inputs: TransactionInput,
         proof: Groth16Proof,
-        nonce: U256,
     ) -> eyre::Result<TransactionReceipt> {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
-            .processMPC(inputs, proof, nonce)
+            .processMPC(inputs, proof)
             .gas(10_000_000)
             .send()
             .await
