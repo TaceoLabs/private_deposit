@@ -1,9 +1,4 @@
-use crate::{
-    F,
-    conf_token::ConfidentialToken::{
-        ActionQuery, BabyJubJubElement, Ciphertext, Groth16Proof, TransactionInput,
-    },
-};
+use crate::F;
 use alloy::{
     network::EthereumWallet,
     primitives::{Address, Log, U256},
@@ -19,9 +14,148 @@ use rand::{CryptoRng, Rng};
 
 // Codegen from ABI file to interact with the contract.
 sol!(
+    #[derive(Debug, PartialEq, Eq)]
+    enum Action {
+        Invalid, // Returned when querying a non-existing action
+        Deposit,
+        Withdraw,
+        Transfer,
+        Dummy // Placeholder to fill batches
+    }
+
+    struct ActionQuery {
+        Action action;
+        address sender;
+        address receiver;
+        uint256 amount; // Either a commitment or an actual amount
+    }
+
+    struct BabyJubJubElement {
+        uint256 x;
+        uint256 y;
+    }
+
+    // We do not store a nonce, since we assume that the sender_pk is randomly sampled each time
+    struct Ciphertext {
+        uint256[3] amount;
+        uint256[3] r;
+        BabyJubJubElement sender_pk;
+    }
+
+    struct Groth16Proof {
+        uint256[2] pA;
+        uint256[2][2] pB;
+        uint256[2] pC;
+    }
+
+    uint256 private constant BATCH_SIZE = 50;
+    struct TransactionInput {
+        uint256[BATCH_SIZE] action_index;
+        uint256[BATCH_SIZE * 2] commitments; // Consists of new_commitments of sender/receiver balances, remaining commitments are read from smart contract
+    }
     #[sol(rpc)]
-    ConfidentialToken,
-    "../contracts/ConfidentialToken.json"
+    contract ConfidentialToken {
+        BabyJubJubElement public mpc_pk1;
+        BabyJubJubElement public mpc_pk2;
+        BabyJubJubElement public mpc_pk3;
+
+        event Deposit(uint256 action_index);
+        event Withdraw(uint256 action_index);
+        event Transfer(uint256 action_index);
+        event TransferBatch(uint256[] action_indices);
+        // We emit the location of the registered action indices which have been successfully processed
+        event ProcessedMPC(uint256[BATCH_SIZE] action_indices);
+
+        // The error codes
+        error Unauthorized();
+        error InvalidProof();
+        error InvalidMpcAction();
+        error NotInPrimeField();
+        error InvalidAmount();
+        error InvalidTransfer();
+        error CannotRemoveDummyAction();
+        error InvalidCommitment();
+        error NotOnCurve();
+        error InvalidParameters();
+        function getBalanceCommitment(address user) public view returns (uint256);
+        function getActionAtIndex(uint256 index) public view returns (ActionQuery memory);
+        function getActionQueueSize() public view returns (uint256);
+        function getCiphertextAtIndex(uint256 index) public view returns (Ciphertext memory);
+        function retrieveFunds(address receiver) public;
+        function deposit() public payable returns (uint256);
+        function withdraw(uint256 amount) public returns (uint256);
+        function transfer(address receiver, uint256 amount, Ciphertext calldata ciphertext)
+            public
+            returns (uint256);
+        function transferBatch(
+                address[] calldata senders,
+                address[] calldata receivers,
+                uint256[] calldata amount_commitments
+                // Ciphertext[] calldata ciphertexts
+            ) public returns (uint256[] memory);
+
+        function removeActionAtIndex(uint256 index) public;
+        function removeAllOpenActions() public;
+        function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public;
+        function read_queue(uint256 num_items)
+            public
+            view
+            returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory);
+        function whitelistForDemo(address[] calldata addresses) public;
+    }
+
+    #[sol(rpc)]
+    contract ConfidentialTokenERC {
+        // The token we use
+        address public immutable token;
+        BabyJubJubElement public mpc_pk1;
+        BabyJubJubElement public mpc_pk2;
+        BabyJubJubElement public mpc_pk3;
+
+        event Deposit(uint256 action_index);
+        event Withdraw(uint256 action_index);
+        event Transfer(uint256 action_index);
+        event TransferBatch(uint256[] action_indices);
+        // We emit the location of the registered action indices which have been successfully processed
+        event ProcessedMPC(uint256[BATCH_SIZE] action_indices);
+
+        // The error codes
+        error Unauthorized();
+        error InvalidProof();
+        error InvalidMpcAction();
+        error NotInPrimeField();
+        error InvalidAmount();
+        error InvalidTransfer();
+        error CannotRemoveDummyAction();
+        error InvalidCommitment();
+        error NotOnCurve();
+        error InvalidParameters();
+        function getBalanceCommitment(address user) public view returns (uint256);
+        function getActionAtIndex(uint256 index) public view returns (ActionQuery memory);
+        function getActionQueueSize() public view returns (uint256);
+        function getCiphertextAtIndex(uint256 index) public view returns (Ciphertext memory);
+        function retrieveFunds(address receiver) public;
+        function deposit(uint256 amount) public returns (uint256);
+        function withdraw(uint256 amount) public returns (uint256);
+        function transfer(address receiver, uint256 amount, Ciphertext calldata ciphertext)
+            public
+            returns (uint256);
+        function transferBatch(
+                address[] calldata senders,
+                address[] calldata receivers,
+                uint256[] calldata amount_commitments
+                // Ciphertext[] calldata ciphertexts
+            ) public returns (uint256[] memory);
+
+        function removeActionAtIndex(uint256 index) public;
+        function removeAllOpenActions() public;
+        function processMPC(TransactionInput calldata inputs, Groth16Proof calldata proof) public;
+        function read_queue(uint256 num_items)
+            public
+            view
+            returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory);
+        function whitelistForDemo(address[] calldata addresses) public;
+    }
 );
 
 pub struct ConfidentialTokenContract {
@@ -279,16 +413,16 @@ impl ConfidentialTokenContract {
             .context("while calling get_balance_commitment")?;
 
         let key1 = ark_babyjubjub::EdwardsAffine::new(
-            crate::u256_to_field(key1.x)?,
-            crate::u256_to_field(key1.y)?,
+            crate::u256_to_field(key1._0)?,
+            crate::u256_to_field(key1._1)?,
         );
         let key2 = ark_babyjubjub::EdwardsAffine::new(
-            crate::u256_to_field(key2.x)?,
-            crate::u256_to_field(key2.y)?,
+            crate::u256_to_field(key2._0)?,
+            crate::u256_to_field(key2._1)?,
         );
         let key3 = ark_babyjubjub::EdwardsAffine::new(
-            crate::u256_to_field(key3.x)?,
-            crate::u256_to_field(key3.y)?,
+            crate::u256_to_field(key3._0)?,
+            crate::u256_to_field(key3._1)?,
         );
 
         Ok([key1, key2, key3])

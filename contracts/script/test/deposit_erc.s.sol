@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ConfidentialToken} from "../../src/conf_token_erc.sol";
+import {ConfidentialTokenERC} from "../../src/conf_token_erc.sol";
 
-contract ConfidentialTokenScript is Script {
-    ConfidentialToken public conf_token;
+contract ConfidentialTokenERCScript is Script {
+    ConfidentialTokenERC public conf_token;
 
     function setUp() public {
         address conf_token_address = vm.envAddress("CONF_TOKEN_ADDRESS");
-        conf_token = ConfidentialToken(conf_token_address);
+        conf_token = ConfidentialTokenERC(conf_token_address);
     }
 
     function run() public {

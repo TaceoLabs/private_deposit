@@ -2,17 +2,17 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ConfidentialToken} from "../../src/conf_token_erc.sol";
+import {ConfidentialTokenERC} from "../../src/conf_token_erc.sol";
 
-contract ConfidentialTokenScript is Script {
-    ConfidentialToken public conf_token;
+contract ConfidentialTokenERCScript is Script {
+    ConfidentialTokenERC public conf_token;
 
     uint256 amount = 1 ether;
     uint256 amount_commitment = 6122001814780532967242228952635820560915594353320782112285831468616175141938;
 
     // For a transfer action
     // Sender Public Key
-    ConfidentialToken.BabyJubJubElement sender_key = ConfidentialToken.BabyJubJubElement(
+    ConfidentialTokenERC.BabyJubJubElement sender_key = ConfidentialTokenERC.BabyJubJubElement(
         14126526673002152226685028859637341993398518531603040589075929701947081008152,
         2262429687539372424558773003960644901192543279316913065087518967280725694787
     );
@@ -25,12 +25,12 @@ contract ConfidentialTokenScript is Script {
     uint256 amount2 = 9318907414941246766382086462820299264561576095244169207256108475923746065863;
     uint256 r2 = 19408893814710241131916645829673431006471358670475695934923536001569549968187;
 
-    ConfidentialToken.Ciphertext ciphertext =
-        ConfidentialToken.Ciphertext([amount0, amount1, amount2], [r0, r1, r2], sender_key);
+    ConfidentialTokenERC.Ciphertext ciphertext =
+        ConfidentialTokenERC.Ciphertext([amount0, amount1, amount2], [r0, r1, r2], sender_key);
 
     function setUp() public {
         address conf_token_address = vm.envAddress("CONF_TOKEN_ADDRESS");
-        conf_token = ConfidentialToken(conf_token_address);
+        conf_token = ConfidentialTokenERC(conf_token_address);
     }
 
     function run() public {

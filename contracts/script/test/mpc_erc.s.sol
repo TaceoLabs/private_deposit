@@ -2,10 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ConfidentialToken} from "../../src/conf_token_erc.sol";
+import {ConfidentialTokenERC} from "../../src/conf_token_erc.sol";
 
-contract ConfidentialTokenScript is Script {
-    ConfidentialToken public conf_token;
+contract ConfidentialTokenERCScript is Script {
+    ConfidentialTokenERC public conf_token;
 
     // The commitments
     uint256 amount_commitment = 6122001814780532967242228952635820560915594353320782112285831468616175141938;
@@ -18,12 +18,12 @@ contract ConfidentialTokenScript is Script {
 
     function setUp() public {
         address conf_token_address = vm.envAddress("CONF_TOKEN_ADDRESS");
-        conf_token = ConfidentialToken(conf_token_address);
+        conf_token = ConfidentialTokenERC(conf_token_address);
     }
 
     function run() public {
         // The proof
-        ConfidentialToken.Groth16Proof memory proof;
+        ConfidentialTokenERC.Groth16Proof memory proof;
         proof.pA = [
             2692155549328219733881864725659782103889366503314143192616415429475023216338,
             7397719695643597255965727699285533576443852083251336234356429231072669662021
@@ -45,7 +45,7 @@ contract ConfidentialTokenScript is Script {
 
         // Process MPC actions
         // Create inputs
-        ConfidentialToken.TransactionInput memory inputs;
+        ConfidentialTokenERC.TransactionInput memory inputs;
         // Deposit by Alice
         inputs.action_index[0] = 1;
         // inputs.commitments[0] = 0;

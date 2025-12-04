@@ -1,16 +1,14 @@
 use crate::{
     F,
-    conf_token_erc::ConfidentialToken::{
-        ActionQuery, BabyJubJubElement, Ciphertext, Groth16Proof, TransactionInput,
-    },
+    conf_token::ConfidentialTokenERC,
+    conf_token::{ActionQuery, BabyJubJubElement, Ciphertext, Groth16Proof, TransactionInput},
 };
 use alloy::{
     network::EthereumWallet,
     primitives::{Address, Log, U256},
     providers::{DynProvider, Provider as _, ProviderBuilder, WsConnect},
     rpc::types::{Filter, TransactionReceipt},
-    sol,
-    sol_types::SolEvent,
+    sol_types::{SolEvent, SolValue},
 };
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{UniformRand, Zero};
@@ -18,11 +16,6 @@ use eyre::Context;
 use rand::{CryptoRng, Rng};
 
 // Codegen from ABI file to interact with the contract.
-sol!(
-    #[sol(rpc)]
-    ConfidentialToken,
-    "../contracts/ConfidentialTokenERC.json"
-);
 
 pub struct ConfidentialTokenContractERC {
     pub(crate) contract_address: Address,
@@ -112,7 +105,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn get_balance_commitment(&self, user: F) -> eyre::Result<F> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
         let commitment = contract
             .getBalanceCommitment(crate::field_to_address(user)?)
             .call()
@@ -123,16 +116,17 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn get_action_at_index(&self, index: usize) -> eyre::Result<ActionQuery> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
-        contract
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
+        let res = contract
             .getActionAtIndex(crate::usize_to_u256(index))
             .call()
             .await
-            .context("while calling get_action_at_index")
+            .context("while calling get_action_at_index")?;
+        Ok(ActionQuery::abi_decode(&res.abi_encode()).expect("desync between action query"))
     }
 
     pub async fn get_action_queue_size(&self) -> eyre::Result<usize> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
         let size = contract
             .getActionQueueSize()
             .call()
@@ -143,7 +137,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn retrieve_funds(&self, receiver: Address) -> eyre::Result<TransactionReceipt> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .retrieveFunds(receiver)
@@ -167,7 +161,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn deposit(&self, amount: F) -> eyre::Result<(usize, TransactionReceipt)> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .deposit(crate::field_to_u256(amount))
@@ -188,7 +182,7 @@ impl ConfidentialTokenContractERC {
         }
 
         let result = receipt
-            .decoded_log::<ConfidentialToken::Deposit>()
+            .decoded_log::<ConfidentialTokenERC::Deposit>()
             .ok_or_else(|| eyre::eyre!("no Deposit event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
@@ -200,7 +194,7 @@ impl ConfidentialTokenContractERC {
         from: Address,
         amount: F,
     ) -> eyre::Result<(usize, TransactionReceipt)> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .deposit(crate::field_to_u256(amount))
@@ -222,7 +216,7 @@ impl ConfidentialTokenContractERC {
         }
 
         let result = receipt
-            .decoded_log::<ConfidentialToken::Deposit>()
+            .decoded_log::<ConfidentialTokenERC::Deposit>()
             .ok_or_else(|| eyre::eyre!("no Deposit event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
@@ -230,7 +224,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn withdraw(&self, amount: F) -> eyre::Result<(usize, TransactionReceipt)> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .withdraw(crate::field_to_u256(amount))
@@ -251,7 +245,7 @@ impl ConfidentialTokenContractERC {
         }
 
         let result = receipt
-            .decoded_log::<ConfidentialToken::Withdraw>()
+            .decoded_log::<ConfidentialTokenERC::Withdraw>()
             .ok_or_else(|| eyre::eyre!("no Withdraw event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
@@ -259,7 +253,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn get_mpc_keys(&self) -> eyre::Result<[ark_babyjubjub::EdwardsAffine; 3]> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
         let key1 = contract
             .mpc_pk1()
             .call()
@@ -277,16 +271,16 @@ impl ConfidentialTokenContractERC {
             .context("while calling get_balance_commitment")?;
 
         let key1 = ark_babyjubjub::EdwardsAffine::new(
-            crate::u256_to_field(key1.x)?,
-            crate::u256_to_field(key1.y)?,
+            crate::u256_to_field(key1._0)?,
+            crate::u256_to_field(key1._1)?,
         );
         let key2 = ark_babyjubjub::EdwardsAffine::new(
-            crate::u256_to_field(key2.x)?,
-            crate::u256_to_field(key2.y)?,
+            crate::u256_to_field(key2._0)?,
+            crate::u256_to_field(key2._1)?,
         );
         let key3 = ark_babyjubjub::EdwardsAffine::new(
-            crate::u256_to_field(key3.x)?,
-            crate::u256_to_field(key3.y)?,
+            crate::u256_to_field(key3._0)?,
+            crate::u256_to_field(key3._1)?,
         );
 
         Ok([key1, key2, key3])
@@ -299,7 +293,7 @@ impl ConfidentialTokenContractERC {
         amount: F,
         ciphertext: Ciphertext,
     ) -> eyre::Result<(usize, TransactionReceipt)> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .transfer(to, crate::field_to_u256(amount), ciphertext)
@@ -322,7 +316,7 @@ impl ConfidentialTokenContractERC {
         }
 
         let result = receipt
-            .decoded_log::<ConfidentialToken::Transfer>()
+            .decoded_log::<ConfidentialTokenERC::Transfer>()
             .ok_or_else(|| eyre::eyre!("no Transfer event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
@@ -335,7 +329,7 @@ impl ConfidentialTokenContractERC {
         amount: F,
         ciphertext: Ciphertext,
     ) -> eyre::Result<(usize, TransactionReceipt)> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .transfer(to, crate::field_to_u256(amount), ciphertext)
@@ -356,7 +350,7 @@ impl ConfidentialTokenContractERC {
         }
 
         let result = receipt
-            .decoded_log::<ConfidentialToken::Transfer>()
+            .decoded_log::<ConfidentialTokenERC::Transfer>()
             .ok_or_else(|| eyre::eyre!("no Transfer event found in transaction receipt logs"))?;
         let action_index = crate::u256_to_usize(result.action_index)?;
 
@@ -373,7 +367,7 @@ impl ConfidentialTokenContractERC {
         assert_eq!(from.len(), to.len());
         assert_eq!(from.len(), amount.len());
         // assert_eq!(from.len(), ciphertext.len());
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .transferBatch(
@@ -401,7 +395,7 @@ impl ConfidentialTokenContractERC {
         }
 
         let result = receipt
-            .decoded_log::<ConfidentialToken::TransferBatch>()
+            .decoded_log::<ConfidentialTokenERC::TransferBatch>()
             .ok_or_else(|| {
                 eyre::eyre!("no TransferBatch event found in transaction receipt logs")
             })?;
@@ -417,7 +411,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn remove_action_at_index(&self, index: usize) -> eyre::Result<TransactionReceipt> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .removeActionAtIndex(crate::usize_to_u256(index))
@@ -441,7 +435,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn remove_all_open_actions(&self) -> eyre::Result<TransactionReceipt> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .removeAllOpenActions()
@@ -470,7 +464,7 @@ impl ConfidentialTokenContractERC {
         inputs: TransactionInput,
         proof: Groth16Proof,
     ) -> eyre::Result<TransactionReceipt> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .processMPC(inputs, proof)
@@ -499,7 +493,7 @@ impl ConfidentialTokenContractERC {
         &self,
         addresses: Vec<Address>,
     ) -> eyre::Result<TransactionReceipt> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
 
         let receipt = contract
             .whitelistForDemo(addresses)
@@ -526,7 +520,7 @@ impl ConfidentialTokenContractERC {
         &self,
         num_items: usize,
     ) -> eyre::Result<(Vec<usize>, Vec<ActionQuery>, Vec<Ciphertext>)> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
         let res = contract
             .read_queue(crate::usize_to_u256(num_items))
             .call()
@@ -550,7 +544,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn get_ciphertext_at_index(&self, index: usize) -> eyre::Result<Ciphertext> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
         contract
             .getCiphertextAtIndex(crate::usize_to_u256(index))
             .call()
@@ -559,7 +553,7 @@ impl ConfidentialTokenContractERC {
     }
 
     pub async fn get_token_address(&self) -> eyre::Result<Address> {
-        let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
+        let contract = ConfidentialTokenERC::new(self.contract_address, self.provider.clone());
         contract
             .token()
             .call()
@@ -570,17 +564,17 @@ impl ConfidentialTokenContractERC {
     pub async fn read_processed_mpc_events_since(
         &self,
         block: u64,
-    ) -> eyre::Result<Vec<Log<ConfidentialToken::ProcessedMPC>>> {
+    ) -> eyre::Result<Vec<Log<ConfidentialTokenERC::ProcessedMPC>>> {
         let filter = Filter::new()
             .address(self.contract_address)
-            .event_signature(ConfidentialToken::ProcessedMPC::SIGNATURE_HASH)
+            .event_signature(ConfidentialTokenERC::ProcessedMPC::SIGNATURE_HASH)
             .from_block(block);
         let logs = self.provider.get_logs(&filter).await?;
 
         let mut logs_ = Vec::with_capacity(logs.len());
 
         for log in logs {
-            let decoded_log = log.log_decode::<ConfidentialToken::ProcessedMPC>()?;
+            let decoded_log = log.log_decode::<ConfidentialTokenERC::ProcessedMPC>()?;
             logs_.push(decoded_log.into_inner());
         }
 
@@ -590,7 +584,7 @@ impl ConfidentialTokenContractERC {
     pub async fn read_processed_mpc_events(
         &self,
         n_blocks: u64, // amount of latest blocks to read from
-    ) -> eyre::Result<Vec<Log<ConfidentialToken::ProcessedMPC>>> {
+    ) -> eyre::Result<Vec<Log<ConfidentialTokenERC::ProcessedMPC>>> {
         let last_block = self.provider.get_block_number().await?;
         let from_block = last_block.saturating_sub(n_blocks);
 

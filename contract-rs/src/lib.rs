@@ -12,7 +12,7 @@ use ark_ff::PrimeField;
 use ark_groth16::Proof;
 use serde::{Deserialize, Serialize};
 
-use crate::conf_token::ConfidentialToken::{Groth16Proof, TransactionInput};
+use crate::conf_token::{Groth16Proof, TransactionInput};
 
 pub(crate) type F = ark_bn254::Fr;
 pub(crate) type Curve = Bn254;

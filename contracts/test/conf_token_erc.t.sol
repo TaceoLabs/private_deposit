@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {ConfidentialToken} from "../src/conf_token_erc.sol";
+import {ConfidentialTokenERC} from "../src/conf_token_erc.sol";
 import {Action, ActionQuery} from "../src/action_vector.sol";
 import {Groth16Verifier} from "../src/groth16_verifier.sol";
 import {Poseidon2T2_BN254} from "../src/poseidon2.sol";
 import {USDCToken} from "../src/token.sol";
 
-contract ConfidentialTokenTest is Test {
-    ConfidentialToken public conf_token;
+contract ConfidentialTokenERCTest is Test {
+    ConfidentialTokenERC public conf_token;
     Groth16Verifier public verifier;
     Poseidon2T2_BN254 public poseidon2;
     USDCToken public token;
@@ -19,22 +19,22 @@ contract ConfidentialTokenTest is Test {
     address mpcAdress = address(0x4);
 
     // MPC Public Keys
-    ConfidentialToken.BabyJubJubElement mpc_pk1 = ConfidentialToken.BabyJubJubElement(
+    ConfidentialTokenERC.BabyJubJubElement mpc_pk1 = ConfidentialTokenERC.BabyJubJubElement(
         18327386459449316261583862697000176637638391765809617634439462209982948418034,
         15354572660754000758598766963334959211735034910036035049973891316846535514308
     );
-    ConfidentialToken.BabyJubJubElement mpc_pk2 = ConfidentialToken.BabyJubJubElement(
+    ConfidentialTokenERC.BabyJubJubElement mpc_pk2 = ConfidentialTokenERC.BabyJubJubElement(
         12602421106157650455773350918246315481116064560358812084709638867737650728515,
         19806185260317599908779153797553700270051067264725027483113828383411852142438
     );
-    ConfidentialToken.BabyJubJubElement mpc_pk3 = ConfidentialToken.BabyJubJubElement(
+    ConfidentialTokenERC.BabyJubJubElement mpc_pk3 = ConfidentialTokenERC.BabyJubJubElement(
         21327735390005260722043380015729518050952199608547795714621193312072738959320,
         2321884067052636057092005455746434955998482736918020414679439547948463777586
     );
 
     // For a transfer action
     // Sender Public Key
-    ConfidentialToken.BabyJubJubElement sender_key = ConfidentialToken.BabyJubJubElement(
+    ConfidentialTokenERC.BabyJubJubElement sender_key = ConfidentialTokenERC.BabyJubJubElement(
         14126526673002152226685028859637341993398518531603040589075929701947081008152,
         2262429687539372424558773003960644901192543279316913065087518967280725694787
     );
@@ -47,8 +47,8 @@ contract ConfidentialTokenTest is Test {
     uint256 amount2 = 9318907414941246766382086462820299264561576095244169207256108475923746065863;
     uint256 r2 = 19408893814710241131916645829673431006471358670475695934923536001569549968187;
 
-    ConfidentialToken.Ciphertext ciphertext =
-        ConfidentialToken.Ciphertext([amount0, amount1, amount2], [r0, r1, r2], sender_key);
+    ConfidentialTokenERC.Ciphertext ciphertext =
+        ConfidentialTokenERC.Ciphertext([amount0, amount1, amount2], [r0, r1, r2], sender_key);
 
     uint256 public constant BATCH_SIZE = 50;
 
@@ -67,7 +67,7 @@ contract ConfidentialTokenTest is Test {
         poseidon2 = new Poseidon2T2_BN254();
         token = new USDCToken(1_000_000 ether);
 
-        conf_token = new ConfidentialToken(
+        conf_token = new ConfidentialTokenERC(
             address(verifier), address(poseidon2), address(token), mpcAdress, mpc_pk1, mpc_pk2, mpc_pk3, true
         );
 
@@ -119,7 +119,7 @@ contract ConfidentialTokenTest is Test {
         uint256 index = conf_token.transfer(mpcAdress, commit, ciphertext);
         console.log("Transaction action added at index:", index);
 
-        ConfidentialToken.Ciphertext memory cipher = conf_token.getCiphertextAtIndex(index);
+        ConfidentialTokenERC.Ciphertext memory cipher = conf_token.getCiphertextAtIndex(index);
         assertNotEq(cipher.amount[0], 0);
 
         ActionQuery memory query = conf_token.getActionAtIndex(index);
@@ -167,7 +167,7 @@ contract ConfidentialTokenTest is Test {
         uint256 bob_withdraw_commitment = 13215961508686837023384776374239202933726030231749068377927862602099601546864;
 
         // The proof
-        ConfidentialToken.Groth16Proof memory proof;
+        ConfidentialTokenERC.Groth16Proof memory proof;
         proof.pA = [
             2692155549328219733881864725659782103889366503314143192616415429475023216338,
             7397719695643597255965727699285533576443852083251336234356429231072669662021
@@ -206,12 +206,12 @@ contract ConfidentialTokenTest is Test {
         vm.stopPrank();
 
         // Check that ciphertexts are stored correctly
-        ConfidentialToken.Ciphertext memory cipher = conf_token.getCiphertextAtIndex(index);
+        ConfidentialTokenERC.Ciphertext memory cipher = conf_token.getCiphertextAtIndex(index);
         assertNotEq(cipher.amount[0], 0);
 
         // Process MPC actions
         // Create inputs
-        ConfidentialToken.TransactionInput memory inputs;
+        ConfidentialTokenERC.TransactionInput memory inputs;
         // Deposit by Alice
         inputs.action_index[0] = 1;
         // inputs.commitments[0] = 0;
