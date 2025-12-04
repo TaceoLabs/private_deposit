@@ -23,6 +23,7 @@ co-circom.workspace = true
 co-noir.workspace = true
 co-noir-common.workspace = true
 co-noir-to-r1cs.workspace = true
+co-builder.workspace = true
 eyre.workspace = true
 figment.workspace = true
 itertools.workspace = true

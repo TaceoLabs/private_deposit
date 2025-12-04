@@ -6,10 +6,10 @@ pub mod withdraw;
 use crate::proof::TestConfig;
 use co_circom::CoCircomCompilerParsed;
 use co_noir::Bn254;
-use co_noir_to_r1cs::circom::proof_schema::CircomProofSchema;
 use eyre::Context;
 use rand::{CryptoRng, Rng};
 use std::path::PathBuf;
+use co_noir_to_r1cs::circom::proof_schema::CircomProofSchema;
 
 impl TestConfig {
     const CIRCOM_LIB: &str = "/../circom";

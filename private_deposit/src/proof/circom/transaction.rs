@@ -6,11 +6,12 @@ use ark_ff::Zero;
 use ark_groth16::Proof;
 use circom_mpc_vm::{Rep3VmType, mpc_vm::Rep3WitnessExtension};
 use co_circom::{CoCircomCompilerParsed, Rep3SharedWitness, VMConfig};
-use co_noir_to_r1cs::{circom::proof_schema::CircomProofSchema, noir::r1cs};
 use eyre::Context;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
 use std::collections::BTreeMap;
+use co_noir_to_r1cs::circom::proof_schema::CircomProofSchema;
+use co_noir_to_r1cs::noir::r1cs;
 
 impl<K> PrivateDeposit<K, DepositValueShare<F>>
 where

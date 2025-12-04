@@ -7,12 +7,9 @@ pub mod withdraw;
 
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
 use ark_ff::PrimeField;
-use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
+use co_builder::prelude::AcirFormat;
+use co_noir::{Bn254, Rep3AcvmType};
 use co_noir_common::crs::ProverCrs;
-use co_noir_to_r1cs::{
-    noir::ultrahonk,
-    trace::{MpcTraceHasher, TraceHasher},
-};
 use mpc_core::{
     gadgets::poseidon2::Poseidon2,
     protocols::{
@@ -24,6 +21,10 @@ use mpc_net::Network;
 use noirc_artifacts::program::ProgramArtifact;
 use rand::{CryptoRng, Rng};
 use std::{collections::BTreeMap, sync::Arc};
+use co_noir_to_r1cs::{
+    noir::ultrahonk,
+    trace::{MpcTraceHasher, TraceHasher},
+};
 
 // From the Noir circuits
 const NUM_AMOUNT_BITS: usize = 80;

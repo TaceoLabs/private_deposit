@@ -2,9 +2,8 @@ use ark_ff::{PrimeField, UniformRand};
 use clap::Parser;
 use co_circom::{CoCircomCompilerParsed, ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::Bn254;
-use co_noir_to_r1cs::{
-    circom::proof_schema::CircomProofSchema, noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme,
-};
+use co_noir_to_r1cs::noir::r1cs;
+use co_noir_to_r1cs::{NoirProofScheme, circom::proof_schema::CircomProofSchema};
 use eyre::{Context, eyre};
 use figment::{
     Figment,
@@ -470,7 +469,7 @@ fn transactions_with_commitments<R: Rng + CryptoRng>(
 fn transactions_with_r1cs_witext<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
     config: &Config,
-    proof_schema: &NoirProofScheme<F>,
+    proof_schema: &NoirProofScheme,
     nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
     rng: &mut R,
 ) -> eyre::Result<ExitCode> {
@@ -538,7 +537,7 @@ fn transactions_cocircom_witext<R: Rng + CryptoRng>(
 fn transactions_groth16_proof<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
     config: &Config,
-    proof_schema: &NoirProofScheme<F>,
+    proof_schema: &NoirProofScheme,
     cs: &ConstraintMatrices<F>,
     pk: &ProvingKey<Curve>,
     nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],

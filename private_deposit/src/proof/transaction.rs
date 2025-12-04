@@ -1,18 +1,18 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_ff::Zero;
 use ark_groth16::Proof;
+use co_builder::prelude::AcirFormat;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, HonkProof, Rep3AcvmType, VerifyingKeyBarretenberg};
-use co_noir_common::crs::ProverCrs;
-use co_noir_to_r1cs::{
-    noir::{r1cs, ultrahonk},
-    r1cs::noir_proof_schema::NoirProofScheme,
-};
+use co_noir::{HonkProof, Rep3AcvmType};
+use co_noir_common::{crs::ProverCrs, keys::verification_key::VerifyingKeyBarretenberg};
 use eyre::Context;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
 use noir_types::U256;
 use noirc_artifacts::program::ProgramArtifact;
+use co_noir_to_r1cs::NoirProofScheme;
+use co_noir_to_r1cs::noir::r1cs;
+use co_noir_to_r1cs::noir::ultrahonk;
 
 use super::Curve;
 use super::F;
@@ -174,7 +174,7 @@ where
         receiver_key: K,
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         net0: &N,
         net1: &N,
         rep3_state: &mut Rep3State,
@@ -245,7 +245,7 @@ where
         receiver_key: K,
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>, // For the commitment to the amount
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         cs: &ConstraintMatrices<F>,
         pk: &ProvingKey<Curve>,
         net0: &N,

@@ -7,7 +7,6 @@ use ark_groth16::Proof;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
 use co_noir::Rep3AcvmType;
 use co_noir_common::utils::Utils;
-use co_noir_to_r1cs::{noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme};
 use eyre::Context;
 use itertools::izip;
 use mpc_core::protocols::rep3::id::PartyID;
@@ -18,6 +17,8 @@ use mpc_core::serde_compat::{ark_de, ark_se};
 use mpc_net::Network;
 use std::thread;
 use std::time::{Duration, Instant};
+use co_noir_to_r1cs::NoirProofScheme;
+use co_noir_to_r1cs::noir::r1cs;
 
 use super::Curve;
 use super::F;
@@ -365,7 +366,7 @@ where
     pub fn process_queue_with_r1cs_witness<N: Network>(
         &mut self,
         queue: Vec<Action<K>>,
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         nets: &[N; NUM_TRANSACTIONS * 2],
         rep3_states: &mut [Rep3State; NUM_TRANSACTIONS],
     ) -> eyre::Result<(
@@ -483,7 +484,7 @@ where
     pub fn process_queue_with_groth16_proof<N: Network>(
         &mut self,
         queue: Vec<Action<K>>,
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         cs: &ConstraintMatrices<F>,
         pk: &ProvingKey<Curve>,
         nets: &[N; NUM_TRANSACTIONS * 2],
@@ -528,9 +529,7 @@ mod tests {
         // Get the R1CS proof schema
         let mut rng = rand::thread_rng();
         let (proof_schema, pk, cs) = r1cs::setup_r1cs(pa, &mut rng).unwrap();
-        let proof_schema: Arc<
-            NoirProofScheme<ark_ff::Fp<ark_ff::MontBackend<ark_bn254::FrConfig, 4>, 4>>,
-        > = Arc::new(proof_schema);
+        let proof_schema: Arc<NoirProofScheme> = Arc::new(proof_schema);
         let pk = Arc::new(pk);
         let cs = Arc::new(cs);
         let size = proof_schema.size();

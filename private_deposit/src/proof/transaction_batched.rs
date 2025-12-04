@@ -4,13 +4,10 @@ use crate::{
 };
 use ark_ff::{PrimeField, Zero};
 use ark_groth16::Proof;
+use co_builder::prelude::AcirFormat;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, HonkProof, Rep3AcvmType, VerifyingKeyBarretenberg};
-use co_noir_common::crs::ProverCrs;
-use co_noir_to_r1cs::{
-    noir::{r1cs, ultrahonk},
-    r1cs::noir_proof_schema::NoirProofScheme,
-};
+use co_noir::{HonkProof, Rep3AcvmType};
+use co_noir_common::{crs::ProverCrs, keys::verification_key::VerifyingKeyBarretenberg};
 use eyre::Context;
 use itertools::izip;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
@@ -19,6 +16,8 @@ use noir_types::U256;
 use noirc_artifacts::program::ProgramArtifact;
 use rand::{CryptoRng, Rng};
 use std::thread;
+use co_noir_to_r1cs::NoirProofScheme;
+use co_noir_to_r1cs::noir::{r1cs, ultrahonk};
 
 use super::Curve;
 use super::F;
@@ -318,7 +317,7 @@ where
     pub fn transaction_batched_with_r1cs_witext<N: Network>(
         &mut self,
         inputs: &[TransactionInput<K, Rep3PrimeFieldShare<F>>; NUM_TRANSACTIONS],
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         net0: &N,
         net1: &N,
         rep3_state: &mut Rep3State,
@@ -387,7 +386,7 @@ where
     pub fn transaction_batched_with_groth16_proof<N: Network>(
         &mut self,
         inputs: &[TransactionInput<K, Rep3PrimeFieldShare<F>>; NUM_TRANSACTIONS],
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         cs: &ConstraintMatrices<F>,
         pk: &ProvingKey<Curve>,
         net0: &N,
@@ -417,7 +416,7 @@ where
     pub fn transaction_multithread_with_r1cs_witext<N: Network>(
         &mut self,
         inputs: &[TransactionInput<K, Rep3PrimeFieldShare<F>>; NUM_TRANSACTIONS],
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         nets: &[N; NUM_TRANSACTIONS * 2],
         rep3_states: &mut [Rep3State; NUM_TRANSACTIONS],
     ) -> eyre::Result<(
@@ -534,7 +533,7 @@ where
     pub fn transaction_multithread_with_groth16_proof<N: Network>(
         &mut self,
         inputs: &[TransactionInput<K, Rep3PrimeFieldShare<F>>; NUM_TRANSACTIONS],
-        proof_schema: &NoirProofScheme<F>,
+        proof_schema: &NoirProofScheme,
         cs: &ConstraintMatrices<F>,
         pk: &ProvingKey<Curve>,
         nets: &[N; NUM_TRANSACTIONS * 2],

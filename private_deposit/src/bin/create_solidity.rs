@@ -2,9 +2,9 @@ use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{UniformRand, Zero};
 use co_circom::{ConstraintMatrices, ProvingKey};
 use co_noir::Bn254;
-use co_noir_to_r1cs::{
-    circom::solidity_verifier, noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme,
-};
+use co_noir_to_r1cs::NoirProofScheme;
+use co_noir_to_r1cs::circom::solidity_verifier;
+use co_noir_to_r1cs::noir::r1cs;
 use itertools::izip;
 use mpc_core::{
     gadgets::poseidon2::Poseidon2,
@@ -116,7 +116,7 @@ fn create_action_queues<R: Rng + CryptoRng>(
 // This function creates inputs to the solidity verifier test
 #[expect(clippy::identity_op)]
 fn test_process_mpc<R: Rng + CryptoRng>(
-    proof_schema: &NoirProofScheme<F>,
+    proof_schema: &NoirProofScheme,
     cs: &ConstraintMatrices<F>,
     pk: &ProvingKey<Curve>,
     mpc_keys: [ark_babyjubjub::EdwardsAffine; 3],
