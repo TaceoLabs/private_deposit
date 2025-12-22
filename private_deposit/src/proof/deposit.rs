@@ -1,9 +1,11 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_ff::Zero;
 use ark_groth16::Proof;
+use co_builder::prelude::AcirFormat;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, HonkProof, Rep3AcvmType, VerifyingKeyBarretenberg};
+use co_noir::{HonkProof, Rep3AcvmType};
 use co_noir_common::crs::ProverCrs;
+use co_noir_common::keys::verification_key::VerifyingKeyBarretenberg;
 use co_noir_to_r1cs::{
     noir::{r1cs, ultrahonk},
     r1cs::noir_proof_schema::NoirProofScheme,

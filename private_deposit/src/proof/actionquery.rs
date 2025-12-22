@@ -45,7 +45,7 @@ where
         Utils::field_from_hex_string(
             "0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb",
         )
-        .expect("Knwon string should work") // commit(0, 0)
+        .expect("Known string should work") // commit(0, 0)
     }
 
     #[expect(clippy::type_complexity, clippy::too_many_arguments)]
@@ -67,7 +67,7 @@ where
         Vec<Rep3PrimeFieldShare<F>>,
         Vec<Rep3PrimeFieldShare<F>>,
     )> {
-        let (inputs, reciever_old_amount, reciever_old_blinding) = Self::get_transaction_input(
+        let (inputs, receiver_old_amount, receiver_old_blinding) = Self::get_transaction_input(
             sender_old.to_owned(),
             receiver_old,
             amount,
@@ -85,8 +85,8 @@ where
                 sender_old.blinding,
                 sender_new.amount,
                 sender_new.blinding,
-                reciever_old_amount,
-                reciever_old_blinding,
+                receiver_old_amount,
+                receiver_old_blinding,
                 receiver_new.amount,
                 receiver_new.blinding,
             ],

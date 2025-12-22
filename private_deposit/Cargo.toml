@@ -20,6 +20,7 @@ ark-serialize.workspace = true
 clap.workspace = true
 circom-mpc-vm.workspace = true
 co-circom.workspace = true
+co-builder.workspace = true
 co-noir.workspace = true
 co-noir-common.workspace = true
 co-noir-to-r1cs.workspace = true

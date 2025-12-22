@@ -1,15 +1,87 @@
+pub mod actionquery;
 pub mod deposit;
 pub mod transaction;
 pub mod transaction_batched;
 pub mod withdraw;
 
-use crate::proof::TestConfig;
+use crate::proof::{DOMAIN_SEPARATOR, TestConfig};
+use ark_ff::PrimeField;
+use circom_mpc_vm::{ComponentAcceleratorOutput, Rep3VmType};
 use co_circom::CoCircomCompilerParsed;
 use co_noir::Bn254;
 use co_noir_to_r1cs::circom::proof_schema::CircomProofSchema;
 use eyre::Context;
+use mpc_core::gadgets::poseidon2::{CircomTraceBatchedHasher, CircomTracePlainHasher};
+use mpc_core::{
+    gadgets::poseidon2::Poseidon2,
+    protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State},
+};
+use mpc_net::Network;
 use rand::{CryptoRng, Rng};
 use std::path::PathBuf;
+
+pub(crate) fn poseidon2_circom_commitment_helper<
+    const I: usize,
+    const I2: usize,
+    F: PrimeField,
+    N: Network,
+>(
+    mut input: [Rep3PrimeFieldShare<F>; I2],
+    net: &N,
+    rep3_state: &mut Rep3State,
+) -> eyre::Result<Vec<ComponentAcceleratorOutput<Rep3VmType<F>>>> {
+    const T: usize = 2;
+    assert_eq!(T * I, I2);
+    let domain_separator = F::from(DOMAIN_SEPARATOR);
+    let hasher = Poseidon2::<F, T, 5>::default();
+    let mut hasher_precomp = hasher.precompute_rep3(I, net, rep3_state)?;
+    for input in input.iter_mut().step_by(T) {
+        rep3::arithmetic::add_assign_public(input, domain_separator, rep3_state.id);
+    }
+
+    let mut result = Vec::with_capacity(I);
+    let (states, traces) = hasher
+        .rep3_permutation_in_place_with_precomputation_intermediate_packed::<N, I2>(
+            input,
+            &mut hasher_precomp,
+            net,
+        )?;
+    for (state, trace) in states.chunks(T).zip(traces) {
+        result.push(ComponentAcceleratorOutput::new(
+            state
+                .iter()
+                .map(|x| (*x).into())
+                .collect::<Vec<Rep3VmType<F>>>(),
+            trace
+                .iter()
+                .map(|x| (*x).into())
+                .collect::<Vec<Rep3VmType<F>>>(),
+        ));
+    }
+    Ok(result)
+}
+
+pub(crate) fn poseidon2_plain_circom_commitment_helper<
+    const I: usize,
+    const I2: usize,
+    F: PrimeField,
+>(
+    mut input: [F; I2],
+) -> eyre::Result<Vec<([F; 2], Vec<F>)>> {
+    const T: usize = 2;
+    assert_eq!(T * I, I2);
+    let domain_separator = F::from(DOMAIN_SEPARATOR);
+    let hasher = Poseidon2::<F, T, 5>::default();
+    for input in input.iter_mut().step_by(T) {
+        *input += domain_separator;
+    }
+
+    let mut result = Vec::with_capacity(I);
+    for input in input.chunks_exact(2) {
+        result.push(hasher.plain_permutation_intermediate([input[0], input[1]])?);
+    }
+    Ok(result)
+}
 
 impl TestConfig {
     const CIRCOM_LIB: &str = "/../circom";

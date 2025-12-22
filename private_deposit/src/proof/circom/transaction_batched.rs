@@ -1,16 +1,20 @@
+use crate::proof::decompose_compose_for_transaction;
 use crate::{
     data_structure::{DepositValueShare, PrivateDeposit},
     proof::{
         Curve, F,
-        transaction_batched::{NUM_TRANSACTIONS, TransactionInput},
+        transaction::NUM_TRANSACTION_COMMITMENTS,
+        transaction_batched::{NUM_COMMITMENTS, NUM_TRANSACTIONS, TransactionInput},
     },
 };
 use ark_ff::Zero;
 use ark_groth16::Proof;
+use circom_mpc_vm::ComponentAcceleratorOutput;
 use circom_mpc_vm::{Rep3VmType, mpc_vm::Rep3WitnessExtension};
 use co_circom::{CoCircomCompilerParsed, Rep3SharedWitness, VMConfig};
 use co_noir_to_r1cs::{circom::proof_schema::CircomProofSchema, noir::r1cs};
 use eyre::Context;
+use itertools::Itertools;
 use mpc_core::protocols::rep3::{Rep3PrimeFieldShare, Rep3State};
 use mpc_net::Network;
 use std::collections::BTreeMap;
@@ -20,7 +24,7 @@ where
     K: std::hash::Hash + Eq + Clone,
 {
     #[expect(clippy::too_many_arguments)]
-    fn add_to_circom_tranasction_input(
+    fn add_to_circom_transaction_input(
         i: usize,
         inputs: &mut BTreeMap<String, Rep3VmType<F>>,
         sender_old: DepositValueShare<F>,
@@ -29,7 +33,7 @@ where
         amount_blinding: Rep3PrimeFieldShare<F>,
         sender_new_blinding: Rep3PrimeFieldShare<F>,
         receiver_new_blinding: Rep3PrimeFieldShare<F>,
-    ) {
+    ) -> (Rep3PrimeFieldShare<F>, Rep3PrimeFieldShare<F>) {
         inputs.insert(
             format!("sender_old_balance[{i}]").to_string(),
             Rep3VmType::from(sender_old.amount),
@@ -38,7 +42,7 @@ where
             format!("sender_old_r[{i}]").to_string(),
             Rep3VmType::from(sender_old.blinding),
         );
-        if let Some(old) = receiver_old {
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
             inputs.insert(
                 format!("receiver_old_balance[{i}]").to_string(),
                 Rep3VmType::from(old.amount),
@@ -47,6 +51,7 @@ where
                 format!("receiver_old_r[{i}]").to_string(),
                 Rep3VmType::from(old.blinding),
             );
+            (old.amount, old.blinding)
         } else {
             inputs.insert(
                 format!("receiver_old_balance[{i}]").to_string(),
@@ -56,6 +61,7 @@ where
                 format!("receiver_old_r[{i}]").to_string(),
                 Rep3VmType::from(F::zero()),
             );
+            (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
         };
         inputs.insert(format!("amount[{i}]").to_string(), Rep3VmType::from(amount));
         inputs.insert(
@@ -70,6 +76,7 @@ where
             format!("receiver_new_r[{i}]").to_string(),
             Rep3VmType::from(receiver_new_blinding),
         );
+        (receiver_old_amount, receiver_old_blinding)
     }
 
     #[expect(clippy::type_complexity)]
@@ -87,9 +94,16 @@ where
     )> {
         let mut sender_new = Vec::with_capacity(NUM_TRANSACTIONS);
         let mut receiver_new = Vec::with_capacity(NUM_TRANSACTIONS);
+        let mut commitment_inputs = [Rep3PrimeFieldShare::zero(); NUM_COMMITMENTS * 2]; // each commitment needs 2 inputs
+        let mut commitment_inputs_decomposed: Vec<(Vec<Rep3VmType<F>>, Vec<Rep3VmType<F>>)> =
+            Vec::with_capacity(NUM_TRANSACTIONS);
         let mut proof_inputs = BTreeMap::new();
 
-        for (i, input) in inputs.iter().enumerate() {
+        for (i, (input, commitments)) in inputs
+            .iter()
+            .zip(commitment_inputs.chunks_exact_mut(NUM_TRANSACTION_COMMITMENTS * 2))
+            .enumerate()
+        {
             let (sender_old, sender_new_, receiver_old, receiver_new_) = self.transaction(
                 input.sender_key.clone(),
                 input.receiver_key.clone(),
@@ -97,28 +111,79 @@ where
                 rep3_state,
             )?;
 
-            Self::add_to_circom_tranasction_input(
-                i,
-                &mut proof_inputs,
-                sender_old,
-                receiver_old,
+            let (receiver_old_amount, receiver_old_blinding) =
+                Self::add_to_circom_transaction_input(
+                    i,
+                    &mut proof_inputs,
+                    sender_old.to_owned(),
+                    receiver_old,
+                    input.amount,
+                    input.amount_blinding,
+                    sender_new_.blinding,
+                    receiver_new_.blinding,
+                );
+
+            commitments[0] = input.amount;
+            commitments[1] = input.amount_blinding;
+            commitments[2] = sender_old.amount;
+            commitments[3] = sender_old.blinding;
+            commitments[4] = sender_new_.amount;
+            commitments[5] = sender_new_.blinding;
+            commitments[6] = receiver_old_amount;
+            commitments[7] = receiver_old_blinding;
+            commitments[8] = receiver_new_.amount;
+            commitments[9] = receiver_new_.blinding;
+
+            // The bit decompositions
+            let (decomp_amount, decomp_sender_new_amount) = decompose_compose_for_transaction(
                 input.amount,
-                input.amount_blinding,
-                sender_new_.blinding,
-                receiver_new_.blinding,
-            );
+                sender_new_.amount,
+                net0,
+                net1,
+                rep3_state,
+            )?;
 
             sender_new.push(sender_new_);
             receiver_new.push(receiver_new_);
+            commitment_inputs_decomposed.push((
+                decomp_amount
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+                decomp_sender_new_amount
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+            ));
         }
 
         // init MPC protocol
         let rep3_vm = Rep3WitnessExtension::new(net0, net1, circuit, VMConfig::default())
             .context("while constructing MPC VM")?;
 
+        let mut result = super::poseidon2_circom_commitment_helper::<NUM_COMMITMENTS, _, _, _>(
+            commitment_inputs,
+            net0,
+            rep3_state,
+        )?;
+        let result_len = result.len();
+
+        // we need to put the decomposed inputs at the correct positions (See circom circuits, the order is like this: input.amount.bits_assert(), input.commit(), sender_new.amount.bits_assert(), sender_old.commit(), sender_new.commit(), receiver_old.commit(), receiver_new.commit())
+        for (i, decomposed) in commitment_inputs_decomposed.into_iter().rev().enumerate() {
+            let current_count = result_len - i * 5 - 1;
+            let amount = ComponentAcceleratorOutput::new(decomposed.0, Vec::new());
+            let sender_new_amount = ComponentAcceleratorOutput::new(decomposed.1, Vec::new());
+            result.insert(current_count - 3, sender_new_amount);
+            result.insert(current_count - 4, amount);
+        }
+
         // execute witness generation in MPC
         let witness = rep3_vm
-            .run(proof_inputs, circuit.public_inputs().len())
+            .run_with_helper_trace(
+                proof_inputs,
+                circuit.public_inputs().len(),
+                &mut Some(result),
+            )
             .context("while running witness generation")?
             .into_shared_witness();
 
@@ -168,9 +233,8 @@ mod tests {
     use std::{array, sync::Arc, thread};
 
     #[test]
-    #[ignore = "This test is slow in debug mode"]
     fn transaction_batched_cocircom_test() {
-        // TestConfig::install_tracing();
+        TestConfig::install_tracing();
 
         // Init Groth16
         // Read circom file

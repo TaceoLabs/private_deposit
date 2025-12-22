@@ -7,7 +7,8 @@ pub mod withdraw;
 
 use crate::data_structure::{DepositValuePlain, PrivateDeposit};
 use ark_ff::PrimeField;
-use co_noir::{AcirFormat, Bn254, Rep3AcvmType};
+use co_builder::prelude::AcirFormat;
+use co_noir::{Bn254, Rep3AcvmType};
 use co_noir_common::crs::ProverCrs;
 use co_noir_to_r1cs::{
     noir::ultrahonk,
@@ -26,8 +27,8 @@ use rand::{CryptoRng, Rng};
 use std::{collections::BTreeMap, sync::Arc};
 
 // From the Noir circuits
-const NUM_AMOUNT_BITS: usize = 80;
-const NUM_WITHDRAW_NEW_BITS: usize = 100;
+pub(super) const NUM_AMOUNT_BITS: usize = 80;
+pub(super) const NUM_WITHDRAW_NEW_BITS: usize = 100;
 const DOMAIN_SEPARATOR: u64 = 0xDEADBEEFu64;
 
 pub const NUM_BATCHED_TRANSACTIONS: usize = transaction_batched::NUM_TRANSACTIONS;
@@ -187,6 +188,21 @@ pub(super) fn decompose_compose_for_deposit<N: Network>(
     }
 
     rep3_ring::conversion::bit_inject_from_bits_to_field_many(&to_compose, net0, rep3_state)
+}
+
+pub(super) fn decompose_compose_public<const NUM_BITS: usize>(inputs: &[F]) -> Vec<Vec<F>> {
+    let mut result = Vec::with_capacity(inputs.len());
+    for &input in inputs.iter() {
+        let mut to_compose = Vec::with_capacity(NUM_BITS);
+        let mut bits = input.into_bigint();
+        for _ in 0..NUM_BITS {
+            let bit = bits.as_ref()[0] & 1;
+            bits >>= 1;
+            to_compose.push(F::from(bit));
+        }
+        result.push(to_compose);
+    }
+    result
 }
 
 pub struct TestConfig {}

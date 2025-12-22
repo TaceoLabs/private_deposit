@@ -3,13 +3,27 @@ pragma circom 2.2.2;
 include "circomlib/bitify.circom";
 include "poseidon2/poseidon2.circom";
 
+template TACEO_PRECOMPUTATION_Poseidon2() {
+    signal input in[2];
+    signal output out[2];
+
+    out <== Poseidon2(2)(in);
+}
+
+template TACEO_PRECOMPUTATION_Num2Bits(n) {
+    signal input in;
+    signal output out[n];
+
+    out <== Num2Bits(n)(in);
+}
+
 template Commit1() {
     signal input value;
     signal input r;
     signal output c;
 
     var DS = 0xDEADBEEF;
-    var state[2] = Poseidon2(2)([value + DS, r]);
+    var state[2] = TACEO_PRECOMPUTATION_Poseidon2()([value + DS, r]);
     c <== state[0] + value;
 }
 
@@ -20,7 +34,7 @@ template CheckAmount() {
 
     var NUM_AMOUNT_BITS = 80;
 
-    var bits[NUM_AMOUNT_BITS] = Num2Bits(NUM_AMOUNT_BITS)(amount);
+    var bits[NUM_AMOUNT_BITS] = TACEO_PRECOMPUTATION_Num2Bits(NUM_AMOUNT_BITS)(amount);
     var commitment = Commit1()(amount, amount_r);
     amount_c <== commitment;
 }
@@ -73,7 +87,7 @@ template WithdrawInner() {
     var NUM_WITHDRAW_NEW_BITS = 100;
 
     signal new_balance <== old_balance - amount;
-    var bits[NUM_WITHDRAW_NEW_BITS] = Num2Bits(NUM_WITHDRAW_NEW_BITS)(new_balance);
+    var bits[NUM_WITHDRAW_NEW_BITS] = TACEO_PRECOMPUTATION_Num2Bits(NUM_WITHDRAW_NEW_BITS)(new_balance);
     var old_commitment = Commit1()(old_balance, old_r);
     var new_commitment = Commit1()(new_balance, new_r);
     old_c <== old_commitment;
