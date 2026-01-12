@@ -20,6 +20,17 @@ use mpc_net::Network;
 use rand::{CryptoRng, Rng};
 use std::path::PathBuf;
 
+pub(crate) const CIRCOM_MAP_LABELS: [&str; 8] = [
+    "sender_old_balance",
+    "sender_old_r",
+    "receiver_old_balance",
+    "receiver_old_r",
+    "amount",
+    "amount_r",
+    "sender_new_r",
+    "receiver_new_r",
+];
+
 pub(crate) fn poseidon2_circom_commitment_helper<
     const I: usize,
     const I2: usize,

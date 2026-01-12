@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn transaction_batched_cocircom_test() {
-        TestConfig::install_tracing();
+        // TestConfig::install_tracing();
 
         // Init Groth16
         // Read circom file

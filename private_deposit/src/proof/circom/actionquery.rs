@@ -1,5 +1,6 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use crate::proof::actionquery::Action;
+use crate::proof::circom::CIRCOM_MAP_LABELS;
 use crate::proof::transaction::NUM_TRANSACTION_COMMITMENTS;
 use crate::proof::transaction_batched::{NUM_COMMITMENTS, NUM_TRANSACTIONS};
 use crate::proof::{
@@ -388,30 +389,13 @@ where
 
     fn add_inputs_to_circom_map(
         i: usize,
-        inputs: &[Rep3VmType<F>],
+        inputs: Vec<Rep3VmType<F>>,
         circom_map: &mut BTreeMap<String, Rep3VmType<F>>,
     ) {
         debug_assert!(inputs.len() == 8);
-        circom_map.insert(
-            format!("sender_old_balance[{i}]").to_string(),
-            inputs[0].clone(),
-        );
-        circom_map.insert(format!("sender_old_r[{i}]").to_string(), inputs[1].clone());
-        circom_map.insert(
-            format!("receiver_old_balance[{i}]").to_string(),
-            inputs[2].clone(),
-        );
-        circom_map.insert(
-            format!("receiver_old_r[{i}]").to_string(),
-            inputs[3].clone(),
-        );
-        circom_map.insert(format!("amount[{i}]").to_string(), inputs[4].clone());
-        circom_map.insert(format!("amount_r[{i}]").to_string(), inputs[5].clone());
-        circom_map.insert(format!("sender_new_r[{i}]").to_string(), inputs[6].clone());
-        circom_map.insert(
-            format!("receiver_new_r[{i}]").to_string(),
-            inputs[7].clone(),
-        );
+        for (inp, label) in inputs.into_iter().zip(CIRCOM_MAP_LABELS.iter()) {
+            circom_map.insert(format!("{label}[{i}]").to_string(), inp.clone());
+        }
     }
 
     #[expect(clippy::type_complexity)]
@@ -501,7 +485,7 @@ where
                     })??;
                 sender_new.push(sender_new_);
                 receiver_new.push(receiver_new_);
-                Self::add_inputs_to_circom_map(i, &inputs_, &mut proof_inputs);
+                Self::add_inputs_to_circom_map(i, inputs_, &mut proof_inputs);
                 traces.extend(traces_);
             }
             Result::<_, eyre::Report>::Ok(())
