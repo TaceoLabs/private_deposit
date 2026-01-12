@@ -2,6 +2,7 @@ pragma circom 2.2.2;
 
 include "circomlib/bitify.circom";
 include "poseidon2/poseidon2.circom";
+include "compression/compression.circom";
 
 template Commit1() {
     signal input value;
@@ -170,4 +171,50 @@ template TransactionBatched(N) {
         receiver_new_commitment[i] <== transactions[i].receiver_new_c;
         amount_commitment[i] <== transactions[i].amount_c;
     }
+}
+
+template TransactionBatchedCompressed(N, T) {
+    signal input sender_old_balance[N];
+    signal input sender_old_r[N];
+    signal input receiver_old_balance[N];
+    signal input receiver_old_r[N];
+    signal input amount[N];
+    signal input amount_r[N];
+    signal input sender_new_r[N];
+    signal input receiver_new_r[N];
+    signal input alpha; // Public input for compression
+    signal output beta;
+    signal output gamma;
+
+    // Calling the old component
+    component transaction_batched = TransactionBatched(N);
+    transaction_batched.sender_old_balance <== sender_old_balance;
+    transaction_batched.sender_old_r <== sender_old_r;
+    transaction_batched.receiver_old_balance <== receiver_old_balance;
+    transaction_batched.receiver_old_r <== receiver_old_r;
+    transaction_batched.amount <== amount;
+    transaction_batched.amount_r <== amount_r;
+    transaction_batched.sender_new_r <== sender_new_r;
+    transaction_batched.receiver_new_r <== receiver_new_r;
+    signal sender_old_commitment[N] <== transaction_batched.sender_old_commitment;
+    signal sender_new_commitment[N] <== transaction_batched.sender_new_commitment;
+    signal receiver_old_commitment[N] <== transaction_batched.receiver_old_commitment;
+    signal receiver_new_commitment[N] <== transaction_batched.receiver_new_commitment;
+    signal amount_commitment[N] <== transaction_batched.amount_commitment;
+
+    // Compressing the outputs
+    var q[5 * N];
+    for (var i = 0; i < N; i++) {
+        q[5 * i] = sender_old_commitment[i];
+        q[5 * i + 1] = sender_new_commitment[i];
+        q[5 * i + 2] = receiver_old_commitment[i];
+        q[5 * i + 3] = receiver_new_commitment[i];
+        q[5 * i + 4] = amount_commitment[i];
+    }
+
+    component compression = Compression(5 * N, T);
+    compression.q <== q;
+    compression.alpha <== alpha;
+    beta <== compression.beta;
+    gamma <== compression.gamma;
 }
