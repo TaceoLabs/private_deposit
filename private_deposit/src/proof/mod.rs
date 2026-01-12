@@ -113,18 +113,16 @@ pub(super) fn decompose_compose_for_transaction<N: Network>(
     amount: Rep3PrimeFieldShare<F>,
     sender_new: Rep3PrimeFieldShare<F>,
     net0: &N,
-    net1: &N,
     rep3_state: &mut Rep3State,
 ) -> eyre::Result<(Vec<Rep3PrimeFieldShare<F>>, Vec<Rep3PrimeFieldShare<F>>)> {
-    let a2b_amount = rep3::conversion::a2y2b(amount, net0, rep3_state)?;
-    let a2b_sender = rep3::conversion::a2y2b(sender_new, net1, rep3_state)?;
+    let result = rep3::conversion::a2y2b_many(&[amount, sender_new], net0, rep3_state)?;
 
     let mut to_compose = Vec::with_capacity(NUM_AMOUNT_BITS + NUM_WITHDRAW_NEW_BITS);
 
     assert!(NUM_AMOUNT_BITS <= 128);
     assert!(NUM_AMOUNT_BITS > 64);
-    let a2b_amount_a = a2b_amount.a.to_u64_digits();
-    let a2b_amount_b = a2b_amount.b.to_u64_digits();
+    let a2b_amount_a = result[0].a.to_u64_digits();
+    let a2b_amount_b = result[0].b.to_u64_digits();
     let mut a2b_amount_a = ((a2b_amount_a[1] as u128) << 64) | a2b_amount_a[0] as u128;
     let mut a2b_amount_b = ((a2b_amount_b[1] as u128) << 64) | a2b_amount_b[0] as u128;
     for _ in 0..NUM_AMOUNT_BITS {
@@ -139,8 +137,8 @@ pub(super) fn decompose_compose_for_transaction<N: Network>(
 
     assert!(NUM_WITHDRAW_NEW_BITS <= 128);
     assert!(NUM_WITHDRAW_NEW_BITS > 64);
-    let a2b_sender_a = a2b_sender.a.to_u64_digits();
-    let a2b_sender_b = a2b_sender.b.to_u64_digits();
+    let a2b_sender_a = result[1].a.to_u64_digits();
+    let a2b_sender_b = result[1].b.to_u64_digits();
     let mut a2b_sender_a = ((a2b_sender_a[1] as u128) << 64) | a2b_sender_a[0] as u128;
     let mut a2b_sender_b = ((a2b_sender_b[1] as u128) << 64) | a2b_sender_b[0] as u128;
 

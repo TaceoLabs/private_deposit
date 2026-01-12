@@ -482,7 +482,6 @@ where
                         input.amount,
                         sender_new.amount,
                         &nets[0],
-                        &nets[1],
                         rep3_state,
                     )?;
 

@@ -36,7 +36,6 @@ where
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>,
         net0: &N,
-        net1: &N,
         rep3_state: &mut Rep3State,
     ) -> eyre::Result<(
         DepositValueShare<F>,
@@ -74,7 +73,7 @@ where
 
         // The bit decompositions
         let (decomp_amount, decomp_sender) =
-            decompose_compose_for_transaction(amount, sender_new.amount, net0, net1, rep3_state)?;
+            decompose_compose_for_transaction(amount, sender_new.amount, net0, rep3_state)?;
         result.insert(
             1,
             ComponentAcceleratorOutput::new(
@@ -436,7 +435,6 @@ where
                                 amount,
                                 amount_blinding,
                                 &nets[0],
-                                &nets[1],
                                 rep3_state,
                             )
                         });

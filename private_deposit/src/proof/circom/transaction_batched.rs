@@ -139,7 +139,6 @@ where
                 input.amount,
                 sender_new_.amount,
                 net0,
-                net1,
                 rep3_state,
             )?;
 
