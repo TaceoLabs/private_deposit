@@ -1,9 +1,11 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
 use ark_ff::Zero;
 use ark_groth16::Proof;
+use co_builder::prelude::AcirFormat;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, HonkProof, Rep3AcvmType, VerifyingKeyBarretenberg};
+use co_noir::{HonkProof, Rep3AcvmType};
 use co_noir_common::crs::ProverCrs;
+use co_noir_common::keys::verification_key::VerifyingKeyBarretenberg;
 use co_noir_to_r1cs::{
     noir::{r1cs, ultrahonk},
     r1cs::noir_proof_schema::NoirProofScheme,
@@ -38,7 +40,7 @@ where
         let mut inputs = Vec::with_capacity(8);
         inputs.push(Rep3AcvmType::from(sender_old.amount));
         inputs.push(Rep3AcvmType::from(sender_old.blinding));
-        let (reciever_old_amount, reciever_old_blinding) = if let Some(old) = receiver_old {
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
             inputs.push(Rep3AcvmType::from(old.amount));
             inputs.push(Rep3AcvmType::from(old.blinding));
             (old.amount, old.blinding)
@@ -51,7 +53,7 @@ where
         inputs.push(Rep3AcvmType::from(amount_blinding));
         inputs.push(Rep3AcvmType::from(sender_new_blinding));
         inputs.push(Rep3AcvmType::from(receiver_new_blinding));
-        (inputs, reciever_old_amount, reciever_old_blinding)
+        (inputs, receiver_old_amount, receiver_old_blinding)
     }
 
     #[expect(clippy::type_complexity)]
@@ -71,7 +73,7 @@ where
         let (sender_old, sender_new, receiver_old, receiver_new) =
             self.transaction(sender_key, receiver_key, amount, rep3_state)?;
 
-        let (reciever_old_amount, reciever_old_blinding) = if let Some(old) = receiver_old {
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
             (old.amount, old.blinding)
         } else {
             (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
@@ -83,8 +85,8 @@ where
                 sender_old.blinding,
                 sender_new.amount,
                 sender_new.blinding,
-                reciever_old_amount,
-                reciever_old_blinding,
+                receiver_old_amount,
+                receiver_old_blinding,
                 receiver_new.amount,
                 receiver_new.blinding,
                 amount,
@@ -119,7 +121,7 @@ where
         let (sender_old, sender_new, receiver_old, receiver_new) =
             self.transaction(sender_key, receiver_key, amount, rep3_state)?;
 
-        let (inputs, reciever_old_amount, reciever_old_blinding) = Self::get_transaction_input(
+        let (inputs, receiver_old_amount, receiver_old_blinding) = Self::get_transaction_input(
             sender_old.to_owned(),
             receiver_old,
             amount,
@@ -138,8 +140,8 @@ where
                 sender_old.blinding,
                 sender_new.amount,
                 sender_new.blinding,
-                reciever_old_amount,
-                reciever_old_blinding,
+                receiver_old_amount,
+                receiver_old_blinding,
                 receiver_new.amount,
                 receiver_new.blinding,
             ],
@@ -186,7 +188,7 @@ where
         let (sender_old, sender_new, receiver_old, receiver_new) =
             self.transaction(sender_key, receiver_key, amount, rep3_state)?;
 
-        let (inputs, reciever_old_amount, reciever_old_blinding) = Self::get_transaction_input(
+        let (inputs, receiver_old_amount, receiver_old_blinding) = Self::get_transaction_input(
             sender_old.to_owned(),
             receiver_old,
             amount,
@@ -203,8 +205,8 @@ where
                 sender_old.blinding,
                 sender_new.amount,
                 sender_new.blinding,
-                reciever_old_amount,
-                reciever_old_blinding,
+                receiver_old_amount,
+                receiver_old_blinding,
                 receiver_new.amount,
                 receiver_new.blinding,
             ],

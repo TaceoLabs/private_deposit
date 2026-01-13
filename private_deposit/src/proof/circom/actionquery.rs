@@ -1,55 +1,34 @@
 use crate::data_structure::{DepositValueShare, PrivateDeposit};
-use crate::proof::NUM_WITHDRAW_NEW_BITS;
+use crate::proof::actionquery::Action;
+use crate::proof::circom::CIRCOM_MAP_LABELS;
 use crate::proof::transaction::NUM_TRANSACTION_COMMITMENTS;
 use crate::proof::transaction_batched::{NUM_COMMITMENTS, NUM_TRANSACTIONS};
+use crate::proof::{
+    Curve, F, NUM_AMOUNT_BITS, NUM_WITHDRAW_NEW_BITS, decompose_compose_for_transaction,
+    decompose_compose_public,
+};
 use ark_ff::Zero;
 use ark_groth16::Proof;
-use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::Rep3AcvmType;
-use co_noir_common::utils::Utils;
-use co_noir_to_r1cs::{noir::r1cs, r1cs::noir_proof_schema::NoirProofScheme};
+use circom_mpc_vm::mpc_vm::Rep3WitnessExtension;
+use circom_mpc_vm::{ComponentAcceleratorOutput, Rep3VmType};
+use co_circom::{CoCircomCompilerParsed, Rep3SharedWitness, VMConfig};
+use co_noir_to_r1cs::circom::proof_schema::CircomProofSchema;
+use co_noir_to_r1cs::noir::r1cs;
 use eyre::Context;
-use itertools::izip;
+use itertools::{Itertools, izip};
 use mpc_core::protocols::rep3::id::PartyID;
 use mpc_core::protocols::rep3::{self, Rep3PrimeFieldShare, Rep3State};
-use mpc_core::protocols::rep3_ring::ring::bit::Bit;
-use mpc_core::protocols::rep3_ring::{self, Rep3RingShare};
-use mpc_core::serde_compat::{ark_de, ark_se};
 use mpc_net::Network;
+use std::collections::BTreeMap;
 use std::thread;
 use std::time::{Duration, Instant};
-
-use super::Curve;
-use super::F;
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub enum Action<K> {
-    Invalid,
-    Deposit(
-        K,
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")] F,
-    ), // Receiver, amount
-    Withdraw(
-        K,
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")] F,
-    ), // Sender, amount
-    Transfer(K, K, Rep3PrimeFieldShare<F>, Rep3PrimeFieldShare<F>), // Sender, Receiver, amount, amount_blinding
-    Dummy,
-}
 
 impl<K> PrivateDeposit<K, DepositValueShare<F>>
 where
     K: std::hash::Hash + Eq + Clone + Send + Sync,
 {
-    pub fn zero_commitment() -> F {
-        Utils::field_from_hex_string(
-            "0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb",
-        )
-        .expect("Known string should work") // commit(0, 0)
-    }
-
     #[expect(clippy::type_complexity, clippy::too_many_arguments)]
-    pub fn process_transaction<N: Network>(
+    pub fn process_transaction_circom<N: Network>(
         sender_old: DepositValueShare<F>,
         receiver_old: Option<DepositValueShare<F>>,
         sender_new: DepositValueShare<F>,
@@ -62,88 +41,144 @@ where
     ) -> eyre::Result<(
         DepositValueShare<F>,
         DepositValueShare<F>,
-        Vec<Rep3AcvmType<F>>,
-        Vec<Vec<Rep3AcvmType<F>>>,
-        Vec<Rep3PrimeFieldShare<F>>,
-        Vec<Rep3PrimeFieldShare<F>>,
+        Vec<Rep3VmType<F>>,
+        Vec<ComponentAcceleratorOutput<Rep3VmType<F>>>,
     )> {
-        let (inputs, receiver_old_amount, receiver_old_blinding) = Self::get_transaction_input(
-            sender_old.to_owned(),
-            receiver_old,
-            amount,
-            amount_blinding,
-            sender_new.blinding,
-            receiver_new.blinding,
-        );
-
-        // The poseidon2 traces
-        let traces = super::poseidon2_commitment_helper::<NUM_TRANSACTION_COMMITMENTS, _, _, _>(
-            [
+        let (inputs, receiver_old_amount, receiver_old_blinding) =
+            Self::get_query_transaction_circom_input(
+                sender_old.to_owned(),
+                receiver_old,
                 amount,
                 amount_blinding,
-                sender_old.amount,
-                sender_old.blinding,
-                sender_new.amount,
                 sender_new.blinding,
-                receiver_old_amount,
-                receiver_old_blinding,
-                receiver_new.amount,
                 receiver_new.blinding,
-            ],
-            net0,
-            rep3_state,
-        )?;
+            );
+
+        let mut result =
+            super::poseidon2_circom_commitment_helper::<NUM_TRANSACTION_COMMITMENTS, _, _, _>(
+                [
+                    amount,
+                    amount_blinding,
+                    sender_old.amount,
+                    sender_old.blinding,
+                    sender_new.amount,
+                    sender_new.blinding,
+                    receiver_old_amount,
+                    receiver_old_blinding,
+                    receiver_new.amount,
+                    receiver_new.blinding,
+                ],
+                net0,
+                rep3_state,
+            )?;
 
         // The bit decompositions
-        let (decomp_amount, decomp_sender) = super::decompose_compose_for_transaction(
-            amount,
-            sender_new.amount,
-            net0,
-            net1,
-            rep3_state,
-        )?;
+        let (decomp_amount, decomp_sender) =
+            decompose_compose_for_transaction(amount, sender_new.amount, net0, net1, rep3_state)?;
+        result.insert(
+            1,
+            ComponentAcceleratorOutput::new(
+                decomp_sender
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+                Vec::new(),
+            ),
+        );
+        result.insert(
+            0,
+            ComponentAcceleratorOutput::new(
+                decomp_amount
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+                Vec::new(),
+            ),
+        );
 
-        Ok((
-            sender_new,
-            receiver_new,
-            inputs,
-            traces,
-            decomp_amount,
-            decomp_sender,
-        ))
+        Ok((sender_new, receiver_new, inputs, result))
     }
 
-    fn get_deposit_input_public_amount(
+    fn get_query_transaction_circom_input(
+        sender_old: DepositValueShare<F>,
+        receiver_old: Option<DepositValueShare<F>>,
+        amount: Rep3PrimeFieldShare<F>,
+        amount_blinding: Rep3PrimeFieldShare<F>,
+        sender_new_blinding: Rep3PrimeFieldShare<F>,
+        receiver_new_blinding: Rep3PrimeFieldShare<F>,
+    ) -> (
+        Vec<Rep3VmType<F>>,
+        Rep3PrimeFieldShare<F>,
+        Rep3PrimeFieldShare<F>,
+    ) {
+        let mut inputs = Vec::with_capacity(8);
+        inputs.push(Rep3VmType::from(sender_old.amount));
+        inputs.push(Rep3VmType::from(sender_old.blinding));
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
+            inputs.push(Rep3VmType::from(old.amount));
+            inputs.push(Rep3VmType::from(old.blinding));
+            (old.amount, old.blinding)
+        } else {
+            inputs.push(Rep3VmType::from(F::zero()));
+            inputs.push(Rep3VmType::from(F::zero()));
+            (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
+        };
+        inputs.push(Rep3VmType::from(amount));
+        inputs.push(Rep3VmType::from(amount_blinding));
+        inputs.push(Rep3VmType::from(sender_new_blinding));
+        inputs.push(Rep3VmType::from(receiver_new_blinding));
+        (inputs, receiver_old_amount, receiver_old_blinding)
+    }
+
+    fn get_deposit_input_public_amount_circom(
         receiver_old: Option<DepositValueShare<F>>,
         amount: F,
         amount_blinding: F,
         receiver_new_blinding: Rep3PrimeFieldShare<F>,
     ) -> (
-        Vec<Rep3AcvmType<F>>,
+        Vec<Rep3VmType<F>>,
         Rep3PrimeFieldShare<F>,
         Rep3PrimeFieldShare<F>,
     ) {
         let mut inputs = Vec::with_capacity(8);
-        inputs.push(Rep3AcvmType::from(amount));
-        inputs.push(Rep3AcvmType::from(amount_blinding));
-        let (old_amount, old_blinding) = if let Some(old) = receiver_old {
-            inputs.push(Rep3AcvmType::from(old.amount));
-            inputs.push(Rep3AcvmType::from(old.blinding));
+        inputs.push(Rep3VmType::from(amount));
+        inputs.push(Rep3VmType::from(amount_blinding));
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
+            inputs.push(Rep3VmType::from(old.amount));
+            inputs.push(Rep3VmType::from(old.blinding));
             (old.amount, old.blinding)
         } else {
-            inputs.push(Rep3AcvmType::from(F::zero()));
-            inputs.push(Rep3AcvmType::from(F::zero()));
+            inputs.push(Rep3VmType::default());
+            inputs.push(Rep3VmType::default());
             (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
         };
-        inputs.push(Rep3AcvmType::from(amount));
-        inputs.push(Rep3AcvmType::from(amount_blinding));
-        inputs.push(Rep3AcvmType::from(F::zero()));
-        inputs.push(Rep3AcvmType::from(receiver_new_blinding));
-        (inputs, old_amount, old_blinding)
+        inputs.push(Rep3VmType::from(amount));
+        inputs.push(Rep3VmType::from(amount_blinding));
+        inputs.push(Rep3VmType::default());
+        inputs.push(Rep3VmType::from(receiver_new_blinding));
+        (inputs, receiver_old_amount, receiver_old_blinding)
+    }
+
+    pub(crate) fn get_query_withdraw_circom_input_public_amount(
+        sender_old: DepositValueShare<F>,
+        amount: F,
+        amount_blinding: F,
+        sender_new_blinding: Rep3PrimeFieldShare<F>,
+    ) -> Vec<Rep3VmType<F>> {
+        vec![
+            Rep3VmType::from(sender_old.amount),
+            Rep3VmType::from(sender_old.blinding),
+            Rep3VmType::default(),
+            Rep3VmType::default(),
+            Rep3VmType::from(amount),
+            Rep3VmType::from(amount_blinding),
+            Rep3VmType::from(sender_new_blinding),
+            Rep3VmType::default(),
+        ]
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn process_deposit<N: Network>(
+    pub fn process_deposit_circom<N: Network>(
         receiver_old: Option<DepositValueShare<F>>,
         receiver_new: DepositValueShare<F>,
         amount: F,
@@ -152,27 +187,23 @@ where
     ) -> eyre::Result<(
         DepositValueShare<F>,
         DepositValueShare<F>,
-        Vec<Rep3AcvmType<F>>,
-        Vec<Vec<Rep3AcvmType<F>>>,
-        Vec<Rep3PrimeFieldShare<F>>,
-        Vec<Rep3PrimeFieldShare<F>>,
+        Vec<Rep3VmType<F>>,
+        Vec<ComponentAcceleratorOutput<Rep3VmType<F>>>,
     )> {
-        // let my_id = PartyID::try_from(net0.id())?;
-
         let (inputs, receiver_old_amount, receiver_old_blinding) =
-            Self::get_deposit_input_public_amount(
+            Self::get_deposit_input_public_amount_circom(
                 receiver_old,
                 amount,
                 F::zero(),
                 receiver_new.blinding,
             );
 
-        let sender_new = DepositValueShare::new(
+        let sender_new = DepositValueShare::<F>::new(
             Rep3PrimeFieldShare::zero_share(),
             Rep3PrimeFieldShare::zero_share(),
         );
 
-        let mut traces = super::poseidon2_commitment_helper::<2, _, _, _>(
+        let mut traces = super::poseidon2_circom_commitment_helper::<2, _, _, _>(
             [
                 receiver_old_amount,
                 receiver_old_blinding,
@@ -183,83 +214,51 @@ where
             rep3_state,
         )?;
 
-        let plain_traces = super::poseidon2_plain_commitment_helper::<2, _, _>([
+        let plain_traces = super::poseidon2_plain_circom_commitment_helper::<2, _, _>([
             amount,
             F::zero(),
             F::zero(),
             F::zero(),
-        ]);
-        traces.insert(0, plain_traces[0].clone());
-        traces.insert(0, plain_traces[0].clone());
-        traces.insert(2, plain_traces[1].clone());
+        ])?;
+        let mut decomp_amount = decompose_compose_public::<NUM_AMOUNT_BITS>(&[amount]);
 
-        // Elements are public, so we do not need bit decomposition witnesses
-        let decomp_amount = vec![];
-        let decomp_sender = vec![];
+        let first_output = ComponentAcceleratorOutput::new(
+            plain_traces[0].0.iter().map(|x| (*x).into()).collect(),
+            plain_traces[0].1.iter().map(|x| (*x).into()).collect(),
+        );
 
-        Ok((
-            sender_new,
-            receiver_new,
-            inputs,
-            traces,
-            decomp_amount,
-            decomp_sender,
-        ))
-    }
-
-    fn get_withdraw_input_public_amount(
-        sender_old: DepositValueShare<F>,
-        amount: F,
-        amount_blinding: F,
-        sender_new_blinding: Rep3PrimeFieldShare<F>,
-    ) -> Vec<Rep3AcvmType<F>> {
-        vec![
-            Rep3AcvmType::from(sender_old.amount),
-            Rep3AcvmType::from(sender_old.blinding),
-            Rep3AcvmType::from(F::zero()),
-            Rep3AcvmType::from(F::zero()),
-            Rep3AcvmType::from(amount),
-            Rep3AcvmType::from(amount_blinding),
-            Rep3AcvmType::from(sender_new_blinding),
-            Rep3AcvmType::from(F::zero()),
-        ]
-    }
-
-    #[expect(clippy::assertions_on_constants)]
-    pub(super) fn decompose_compose_for_withdraw<N: Network>(
-        sender_new: Rep3PrimeFieldShare<F>,
-        net0: &N,
-        rep3_state: &mut Rep3State,
-    ) -> eyre::Result<Vec<Rep3PrimeFieldShare<F>>> {
-        let a2b_sender = rep3::conversion::a2y2b(sender_new, net0, rep3_state)?;
-
-        let mut to_compose = Vec::with_capacity(NUM_WITHDRAW_NEW_BITS);
-        assert!(NUM_WITHDRAW_NEW_BITS <= 128);
-        assert!(NUM_WITHDRAW_NEW_BITS > 64);
-        let a2b_sender_a = a2b_sender.a.to_u64_digits();
-        let a2b_sender_b = a2b_sender.b.to_u64_digits();
-        let mut a2b_sender_a = ((a2b_sender_a[1] as u128) << 64) | a2b_sender_a[0] as u128;
-        let mut a2b_sender_b = ((a2b_sender_b[1] as u128) << 64) | a2b_sender_b[0] as u128;
-        for _ in 0..NUM_WITHDRAW_NEW_BITS {
-            let bit = Rep3RingShare::new(
-                Bit::new((a2b_sender_a & 1) == 1),
-                Bit::new((a2b_sender_b & 1) == 1),
-            );
-            to_compose.push(bit);
-            a2b_sender_a >>= 1;
-            a2b_sender_b >>= 1;
-        }
-        let composed = rep3_ring::conversion::bit_inject_from_bits_to_field_many(
-            &to_compose,
-            net0,
-            rep3_state,
-        )?;
-
-        Ok(composed)
+        traces.insert(0, first_output.clone());
+        traces.insert(0, first_output);
+        traces.insert(
+            2,
+            ComponentAcceleratorOutput::new(
+                plain_traces[1].0.iter().map(|x| (*x).into()).collect(),
+                plain_traces[1].1.iter().map(|x| (*x).into()).collect(),
+            ),
+        );
+        traces.insert(
+            1,
+            ComponentAcceleratorOutput::new(
+                vec![Rep3VmType::default(); NUM_WITHDRAW_NEW_BITS],
+                Vec::new(),
+            ),
+        );
+        traces.insert(
+            0,
+            ComponentAcceleratorOutput::new(
+                decomp_amount
+                    .remove(0)
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+                Vec::new(),
+            ),
+        );
+        Ok((sender_new, receiver_new, inputs, traces))
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn process_withdraw<N: Network>(
+    pub fn process_withdraw_circom<N: Network>(
         sender_old: DepositValueShare<F>,
         sender_new: DepositValueShare<F>,
         amount: F,
@@ -268,14 +267,11 @@ where
     ) -> eyre::Result<(
         DepositValueShare<F>,
         DepositValueShare<F>,
-        Vec<Rep3AcvmType<F>>,
-        Vec<Vec<Rep3AcvmType<F>>>,
-        Vec<Rep3PrimeFieldShare<F>>,
-        Vec<Rep3PrimeFieldShare<F>>,
+        Vec<Rep3VmType<F>>,
+        Vec<ComponentAcceleratorOutput<Rep3VmType<F>>>,
     )> {
         let my_id = PartyID::try_from(net0.id())?;
-
-        let inputs = Self::get_withdraw_input_public_amount(
+        let inputs = Self::get_query_withdraw_circom_input_public_amount(
             sender_old.to_owned(),
             amount,
             F::zero(),
@@ -287,7 +283,7 @@ where
             Rep3PrimeFieldShare::zero_share(),
         );
 
-        let mut traces = super::poseidon2_commitment_helper::<2, _, _, _>(
+        let mut traces = super::poseidon2_circom_commitment_helper::<2, _, _, _>(
             [
                 sender_old.amount,
                 sender_old.blinding,
@@ -298,74 +294,115 @@ where
             rep3_state,
         )?;
 
-        let plain_traces = super::poseidon2_plain_commitment_helper::<2, _, _>([
+        let plain_traces = super::poseidon2_plain_circom_commitment_helper::<2, _, _>([
             amount,
             F::zero(),
             F::zero(),
             F::zero(),
-        ]);
-        traces.insert(0, plain_traces[0].clone());
-        traces.push(plain_traces[1].clone());
-        traces.push(plain_traces[0].clone());
+        ])?;
 
-        // The bit decomposition
-        let decomp_amount = vec![]; // Amount is public, so we do not need bit decomposition witnesses
         let decomp_sender =
             Self::decompose_compose_for_withdraw(sender_new.amount, net0, rep3_state)?;
+        let mut decomp_amount = decompose_compose_public::<NUM_AMOUNT_BITS>(&[amount]);
 
-        Ok((
-            sender_new,
-            receiver_new,
-            inputs,
-            traces,
-            decomp_amount,
-            decomp_sender,
-        ))
+        let first_output = ComponentAcceleratorOutput::new(
+            plain_traces[0].0.iter().map(|x| (*x).into()).collect(),
+            plain_traces[0].1.iter().map(|x| (*x).into()).collect(),
+        );
+        traces.insert(0, first_output.clone());
+        traces.push(ComponentAcceleratorOutput::new(
+            plain_traces[1].0.iter().map(|x| (*x).into()).collect(),
+            plain_traces[1].1.iter().map(|x| (*x).into()).collect(),
+        ));
+        traces.push(first_output);
+
+        traces.insert(
+            1,
+            ComponentAcceleratorOutput::new(
+                decomp_sender
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+                Vec::new(),
+            ),
+        );
+        traces.insert(
+            0,
+            ComponentAcceleratorOutput::new(
+                decomp_amount
+                    .remove(0)
+                    .iter()
+                    .map(|x| Rep3VmType::from(*x))
+                    .collect_vec(),
+                Vec::new(),
+            ),
+        );
+
+        Ok((sender_new, receiver_new, inputs, traces))
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn process_dummy() -> eyre::Result<(
+    pub fn process_dummy_circom() -> eyre::Result<(
         DepositValueShare<F>,
         DepositValueShare<F>,
-        Vec<Rep3AcvmType<F>>,
-        Vec<Vec<Rep3AcvmType<F>>>,
-        Vec<Rep3PrimeFieldShare<F>>,
-        Vec<Rep3PrimeFieldShare<F>>,
+        Vec<Rep3VmType<F>>,
+        Vec<ComponentAcceleratorOutput<Rep3VmType<F>>>,
     )> {
         let mut plain_traces =
-            super::poseidon2_plain_commitment_helper::<1, _, _>([F::zero(), F::zero()]);
+            super::poseidon2_plain_circom_commitment_helper::<1, _, _>([F::zero(), F::zero()])?;
         plain_traces.push(plain_traces[0].clone());
         plain_traces.push(plain_traces[0].clone());
         plain_traces.push(plain_traces[0].clone());
         plain_traces.push(plain_traces[0].clone());
-
         let zero: crate::data_structure::DepositValue<Rep3PrimeFieldShare<_>> =
             DepositValueShare::new(
                 Rep3PrimeFieldShare::zero_share(),
                 Rep3PrimeFieldShare::zero_share(),
             );
+        let mut plain_traces: Vec<ComponentAcceleratorOutput<Rep3VmType<F>>> = plain_traces
+            .iter()
+            .map(|trace| {
+                ComponentAcceleratorOutput::new(
+                    trace.0.iter().map(|x| (*x).into()).collect(),
+                    trace.1.iter().map(|x| (*x).into()).collect(),
+                )
+            })
+            .collect();
+        plain_traces.insert(
+            1,
+            ComponentAcceleratorOutput::new(
+                vec![Rep3VmType::default(); NUM_WITHDRAW_NEW_BITS],
+                Vec::new(),
+            ),
+        );
+        plain_traces.insert(
+            0,
+            ComponentAcceleratorOutput::new(
+                vec![Rep3VmType::default(); NUM_AMOUNT_BITS],
+                Vec::new(),
+            ),
+        );
+        let inputs = vec![Rep3VmType::default(); 8];
 
-        // Elements are public, so we do not need bit decomposition witnesses
-        let decomp_amount = vec![];
-        let decomp_sender = vec![];
+        Ok((zero.clone(), zero, inputs, plain_traces))
+    }
 
-        let inputs = vec![Rep3AcvmType::from(F::zero()); 8];
-
-        Ok((
-            zero.clone(),
-            zero,
-            inputs,
-            plain_traces,
-            decomp_amount,
-            decomp_sender,
-        ))
+    fn add_inputs_to_circom_map(
+        i: usize,
+        inputs: Vec<Rep3VmType<F>>,
+        circom_map: &mut BTreeMap<String, Rep3VmType<F>>,
+    ) {
+        debug_assert!(inputs.len() == 8);
+        for (inp, label) in inputs.into_iter().zip(CIRCOM_MAP_LABELS.iter()) {
+            circom_map.insert(format!("{label}[{i}]").to_string(), inp.clone());
+        }
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn process_queue_with_r1cs_witness<N: Network>(
+    pub fn process_queue_with_cocircom_witext<N: Network>(
         &mut self,
         queue: Vec<Action<K>>,
-        proof_schema: &NoirProofScheme<F>,
+        circuit: &CoCircomCompilerParsed<F>,
         nets: &[N; NUM_TRANSACTIONS * 2],
         rep3_states: &mut [Rep3State; NUM_TRANSACTIONS],
     ) -> eyre::Result<(
@@ -376,11 +413,8 @@ where
         assert_eq!(queue.len(), NUM_TRANSACTIONS);
         let mut sender_new = Vec::with_capacity(NUM_TRANSACTIONS);
         let mut receiver_new = Vec::with_capacity(NUM_TRANSACTIONS);
-        let mut proof_inputs = Vec::with_capacity(NUM_TRANSACTIONS * 8);
+        let mut proof_inputs = BTreeMap::new();
         let mut traces = Vec::with_capacity(NUM_COMMITMENTS);
-        // The compiler groups bitdecomps by bits, so we have to store both used ones separately first
-        let mut bitdecomps1 = Vec::with_capacity(NUM_TRANSACTIONS * 2);
-        let mut bitdecomps2 = Vec::with_capacity(NUM_TRANSACTIONS);
 
         let my_id = PartyID::try_from(nets[0].id())?;
 
@@ -394,7 +428,7 @@ where
                         let (sender_old, sender_new, receiver_old, receiver_new) =
                             self.transaction(sender, receiver, amount, rep3_state)?;
                         let handle = scope.spawn(move || {
-                            Self::process_transaction(
+                            Self::process_transaction_circom(
                                 sender_old,
                                 receiver_old,
                                 sender_new,
@@ -414,7 +448,7 @@ where
                         let (receiver_old, receiver_new) =
                             self.deposit(receiver, amount_shared, rep3_state);
                         let handle = scope.spawn(move || {
-                            Self::process_deposit(
+                            Self::process_deposit_circom(
                                 receiver_old,
                                 receiver_new,
                                 amount,
@@ -430,62 +464,57 @@ where
                         let (sender_old, sender_new) =
                             self.withdraw(sender, amount_shared, rep3_state)?;
                         let handle = scope.spawn(move || {
-                            Self::process_withdraw(
+                            Self::process_withdraw_circom(
                                 sender_old, sender_new, amount, &nets[0], rep3_state,
                             )
                         });
                         handles.push(handle);
                     }
                     Action::Dummy => {
-                        let handle = scope.spawn(move || Self::process_dummy());
+                        let handle = scope.spawn(move || Self::process_dummy_circom());
                         handles.push(handle);
                     }
                     _ => eyre::bail!("Unsupported action in batched transaction processing"),
                 }
             }
 
-            for handle in handles {
-                let (sender_new_, receiver_new_, inputs_, traces_, decomps1, decomps2) =
+            for (i, handle) in handles.into_iter().enumerate() {
+                let (sender_new_, receiver_new_, inputs_, traces_) =
                     handle.join().map_err(|_| {
                         eyre::eyre!("A thread panicked while processing a transaction")
                     })??;
                 sender_new.push(sender_new_);
                 receiver_new.push(receiver_new_);
-                proof_inputs.extend(inputs_);
+                Self::add_inputs_to_circom_map(i, inputs_, &mut proof_inputs);
                 traces.extend(traces_);
-                bitdecomps1.extend(decomps1);
-                bitdecomps2.extend(decomps2);
             }
             Result::<_, eyre::Report>::Ok(())
         });
         result?;
 
-        bitdecomps1.extend(bitdecomps2);
-        let bitdecomps = bitdecomps1;
+        // init MPC protocol
+        let rep3_vm = Rep3WitnessExtension::new(&nets[0], &nets[1], circuit, VMConfig::default())
+            .context("while constructing MPC VM")?;
 
-        let r1cs = r1cs::trace_to_r1cs_witness_with_bitdecomp_witness(
-            proof_inputs,
-            traces,
-            bitdecomps,
-            proof_schema,
-            &nets[0],
-            &nets[1],
-            &mut rep3_states[0],
-        )
-        .context("while translating witness to R1CS")?;
-
-        let witness = r1cs::r1cs_witness_to_cogroth16(proof_schema, r1cs, rep3_states[0].id);
+        // execute witness generation in MPC
+        let witness = rep3_vm
+            .run_with_helper_trace(
+                proof_inputs,
+                circuit.public_inputs().len(),
+                &mut Some(traces),
+            )
+            .context("while running witness generation")?
+            .into_shared_witness();
 
         Ok((sender_new, receiver_new, witness))
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn process_queue_with_groth16_proof<N: Network>(
+    pub fn process_queue_with_cocircom_proof<N: Network>(
         &mut self,
         queue: Vec<Action<K>>,
-        proof_schema: &NoirProofScheme<F>,
-        cs: &ConstraintMatrices<F>,
-        pk: &ProvingKey<Curve>,
+        circuit: &CoCircomCompilerParsed<F>,
+        proof_schema: &CircomProofSchema<Curve>,
         nets: &[N; NUM_TRANSACTIONS * 2],
         rep3_states: &mut [Rep3State; NUM_TRANSACTIONS],
     ) -> eyre::Result<(
@@ -496,11 +525,18 @@ where
         Duration,
     )> {
         let (sender_new, receiver_new, witness) =
-            self.process_queue_with_r1cs_witness(queue, proof_schema, nets, rep3_states)?;
+            self.process_queue_with_cocircom_witext(queue, circuit, nets, rep3_states)?;
 
+        // generate proof
         let start = Instant::now();
-        let (proof, public_inputs) = r1cs::prove(cs, pk, witness, &nets[0], &nets[1])
-            .context("while generating Groth16 proof")?;
+        let (proof, public_inputs) = r1cs::prove(
+            &proof_schema.matrices,
+            &proof_schema.pk,
+            witness,
+            &nets[0],
+            &nets[1],
+        )
+        .context("while generating Groth16 proof")?;
         let duration = start.elapsed();
 
         Ok((sender_new, receiver_new, proof, public_inputs, duration))
@@ -518,21 +554,18 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn actionqueue_test() {
+    fn actionqueue_circom_test() {
         // TestConfig::install_tracing();
 
         // Init Groth16
         // Read constraint system
-        let pa = TestConfig::get_transaction_batched_program_artifact().unwrap();
+        let pa = TestConfig::get_transaction_batched_circom().unwrap();
+        let pa = Arc::new(pa);
 
         // Get the R1CS proof schema
         let mut rng = rand::thread_rng();
-        let (proof_schema, pk, cs) = r1cs::setup_r1cs(pa, &mut rng).unwrap();
-        let proof_schema: Arc<
-            NoirProofScheme<ark_ff::Fp<ark_ff::MontBackend<ark_bn254::FrConfig, 4>, 4>>,
-        > = Arc::new(proof_schema);
-        let pk = Arc::new(pk);
-        let cs = Arc::new(cs);
+        let proof_schema = TestConfig::get_transaction_batched_proof_schema(&mut rng).unwrap();
+        let proof_schema = Arc::new(proof_schema);
         let size = proof_schema.size();
         println!(
             "R1CS size: constraints = {}, witnesses = {}",
@@ -604,7 +637,7 @@ mod tests {
             action_queue_1.push(Action::Withdraw(key2, amount));
             action_queue_2.push(Action::Withdraw(key2, amount));
 
-            // Batch queues
+            // // Batch queues
             debug_assert_eq!(action_queue_0.len(), action_queue_1.len());
             debug_assert_eq!(action_queue_0.len(), action_queue_2.len());
             for _ in action_queue_0.len()..NUM_TRANSACTIONS {
@@ -629,9 +662,8 @@ mod tests {
                     &mut map_shares,
                     [action_queue_0, action_queue_1, action_queue_2]
                 ) {
+                    let pa = pa.clone();
                     let proof_schema = proof_schema.clone();
-                    let cs = cs.clone();
-                    let pk = pk.clone();
                     let handle = scope.spawn(move || {
                         let mut rep3_states = Vec::with_capacity(nets.len() / 2);
                         for net in nets.iter().take(nets.len() / 2) {
@@ -639,11 +671,10 @@ mod tests {
                         }
 
                         let (_sender_read, _receiver_read, proof, public_inputs, _proof_duration) =
-                            map.process_queue_with_groth16_proof(
+                            map.process_queue_with_cocircom_proof(
                                 transaction,
+                                &pa,
                                 &proof_schema,
-                                &cs,
-                                &pk,
                                 nets.as_slice().try_into().unwrap(),
                                 rep3_states.as_mut_slice().try_into().unwrap(),
                             )
@@ -664,7 +695,7 @@ mod tests {
             });
 
             // Verifiy the results
-            assert!(r1cs::verify(&pk.vk, &proof, &public_inputs).unwrap());
+            assert!(r1cs::verify(&proof_schema.pk.vk, &proof, &public_inputs).unwrap());
         }
 
         // Finally, compare the maps

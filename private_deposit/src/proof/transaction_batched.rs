@@ -4,9 +4,11 @@ use crate::{
 };
 use ark_ff::{PrimeField, Zero};
 use ark_groth16::Proof;
+use co_builder::prelude::AcirFormat;
 use co_circom::{ConstraintMatrices, ProvingKey, Rep3SharedWitness};
-use co_noir::{AcirFormat, HonkProof, Rep3AcvmType, VerifyingKeyBarretenberg};
+use co_noir::{HonkProof, Rep3AcvmType};
 use co_noir_common::crs::ProverCrs;
+use co_noir_common::keys::verification_key::VerifyingKeyBarretenberg;
 use co_noir_to_r1cs::{
     noir::{r1cs, ultrahonk},
     r1cs::noir_proof_schema::NoirProofScheme,
@@ -73,7 +75,7 @@ impl<K> PrivateDeposit<K, DepositValueShare<F>>
 where
     K: std::hash::Hash + Eq + Clone + Send + Sync,
 {
-    fn add_to_tranasction_input(
+    fn add_to_transaction_input(
         inputs: &mut Vec<Rep3AcvmType<F>>,
         sender_old: DepositValueShare<F>,
         receiver_old: Option<DepositValueShare<F>>,
@@ -84,7 +86,7 @@ where
     ) -> (Rep3PrimeFieldShare<F>, Rep3PrimeFieldShare<F>) {
         inputs.push(Rep3AcvmType::from(sender_old.amount));
         inputs.push(Rep3AcvmType::from(sender_old.blinding));
-        let (reciever_old_amount, reciever_old_blinding) = if let Some(old) = receiver_old {
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
             inputs.push(Rep3AcvmType::from(old.amount));
             inputs.push(Rep3AcvmType::from(old.blinding));
             (old.amount, old.blinding)
@@ -97,7 +99,7 @@ where
         inputs.push(Rep3AcvmType::from(amount_blinding));
         inputs.push(Rep3AcvmType::from(sender_new_blinding));
         inputs.push(Rep3AcvmType::from(receiver_new_blinding));
-        (reciever_old_amount, reciever_old_blinding)
+        (receiver_old_amount, receiver_old_blinding)
     }
 
     #[expect(clippy::type_complexity)]
@@ -126,7 +128,7 @@ where
                 rep3_state,
             )?;
 
-            let (reciever_old_amount, reciever_old_blinding) = if let Some(old) = receiver_old {
+            let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
                 (old.amount, old.blinding)
             } else {
                 (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
@@ -136,8 +138,8 @@ where
             commitments[1] = sender_old.blinding;
             commitments[2] = sender_new_.amount;
             commitments[3] = sender_new_.blinding;
-            commitments[4] = reciever_old_amount;
-            commitments[5] = reciever_old_blinding;
+            commitments[4] = receiver_old_amount;
+            commitments[5] = receiver_old_blinding;
             commitments[6] = receiver_new_.amount;
             commitments[7] = receiver_new_.blinding;
             commitments[8] = input.amount;
@@ -183,7 +185,7 @@ where
                 )?;
 
                 let handle = scope.spawn(move || {
-                    let (reciever_old_amount, reciever_old_blinding) =
+                    let (receiver_old_amount, receiver_old_blinding) =
                         if let Some(old) = receiver_old {
                             (old.amount, old.blinding)
                         } else {
@@ -197,8 +199,8 @@ where
                                 sender_old.blinding,
                                 sender_new.amount,
                                 sender_new.blinding,
-                                reciever_old_amount,
-                                reciever_old_blinding,
+                                receiver_old_amount,
+                                receiver_old_blinding,
                                 receiver_new.amount,
                                 receiver_new.blinding,
                                 input.amount,
@@ -261,7 +263,7 @@ where
                 rep3_state,
             )?;
 
-            let (reciever_old_amount, reciever_old_blinding) = Self::add_to_tranasction_input(
+            let (receiver_old_amount, receiver_old_blinding) = Self::add_to_transaction_input(
                 &mut proof_inputs,
                 sender_old.to_owned(),
                 receiver_old,
@@ -277,8 +279,8 @@ where
             commitments[3] = sender_old.blinding;
             commitments[4] = sender_new_.amount;
             commitments[5] = sender_new_.blinding;
-            commitments[6] = reciever_old_amount;
-            commitments[7] = reciever_old_blinding;
+            commitments[6] = receiver_old_amount;
+            commitments[7] = receiver_old_blinding;
             commitments[8] = receiver_new_.amount;
             commitments[9] = receiver_new_.blinding;
 
@@ -343,7 +345,7 @@ where
                 rep3_state,
             )?;
 
-            let (reciever_old_amount, reciever_old_blinding) = Self::add_to_tranasction_input(
+            let (receiver_old_amount, receiver_old_blinding) = Self::add_to_transaction_input(
                 &mut proof_inputs,
                 sender_old.to_owned(),
                 receiver_old,
@@ -359,8 +361,8 @@ where
             commitments[3] = sender_old.blinding;
             commitments[4] = sender_new_.amount;
             commitments[5] = sender_new_.blinding;
-            commitments[6] = reciever_old_amount;
-            commitments[7] = reciever_old_blinding;
+            commitments[6] = receiver_old_amount;
+            commitments[7] = receiver_old_blinding;
             commitments[8] = receiver_new_.amount;
             commitments[9] = receiver_new_.blinding;
 
@@ -446,7 +448,7 @@ where
                 )?;
 
                 let handle = scope.spawn(move || {
-                    let (inputs, reciever_old_amount, reciever_old_blinding) =
+                    let (inputs, receiver_old_amount, receiver_old_blinding) =
                         Self::get_transaction_input(
                             sender_old.to_owned(),
                             receiver_old,
@@ -466,8 +468,8 @@ where
                                 sender_old.blinding,
                                 sender_new.amount,
                                 sender_new.blinding,
-                                reciever_old_amount,
-                                reciever_old_blinding,
+                                receiver_old_amount,
+                                receiver_old_blinding,
                                 receiver_new.amount,
                                 receiver_new.blinding,
                             ],

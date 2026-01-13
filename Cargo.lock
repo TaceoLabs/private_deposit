@@ -4,23 +4,18 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acir_field",
  "base64",
  "bincode 2.0.1",
  "brillig",
- "color-eyre",
  "flate2",
- "noir_protobuf",
  "noirc_span",
  "num-bigint 0.4.6",
  "num-traits",
  "num_enum",
- "prost",
- "prost-build",
- "protoc-bin-vendored",
  "rmp-serde",
  "serde",
  "serde-big-array",
@@ -31,8 +26,8 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "ark-bn254",
  "ark-ff 0.5.0",
@@ -45,8 +40,8 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -60,8 +55,8 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acir",
  "blake2",
@@ -990,12 +985,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.100"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
-
-[[package]]
 name = "ark-bls12-381"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1697,8 +1686,8 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1722,8 +1711,8 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acir_field",
  "serde",
@@ -1731,8 +1720,8 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1873,12 +1862,11 @@ dependencies = [
 [[package]]
 name = "circom-mpc-compiler"
 version = "0.10.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-ec",
  "ark-ff 0.5.0",
  "circom-mpc-vm",
- "circom-types",
  "clap",
  "compiler",
  "constraint_generation",
@@ -1888,6 +1876,7 @@ dependencies = [
  "program_structure",
  "serde",
  "sha2",
+ "taceo-circom-types",
  "tracing",
  "type_analysis",
 ]
@@ -1895,7 +1884,7 @@ dependencies = [
 [[package]]
 name = "circom-mpc-vm"
 version = "0.9.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
@@ -1908,29 +1897,6 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "serde",
- "tracing",
-]
-
-[[package]]
-name = "circom-types"
-version = "0.10.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
-dependencies = [
- "ark-bls12-381",
- "ark-bn254",
- "ark-ec",
- "ark-ff 0.5.0",
- "ark-groth16",
- "ark-poly",
- "ark-relations",
- "ark-serialize 0.5.0",
- "ark-std 0.5.0",
- "byteorder",
- "num-traits",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
  "tracing",
 ]
 
@@ -2007,7 +1973,7 @@ dependencies = [
 [[package]]
 name = "co-acvm"
 version = "0.7.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2029,6 +1995,7 @@ dependencies = [
  "noirc_abi",
  "noirc_artifacts",
  "num-bigint 0.4.6",
+ "rand 0.8.5",
  "rayon",
  "serde",
  "sha2",
@@ -2039,7 +2006,7 @@ dependencies = [
 [[package]]
 name = "co-brillig"
 version = "0.4.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "acir",
  "acvm",
@@ -2058,7 +2025,7 @@ dependencies = [
 [[package]]
 name = "co-builder"
 version = "0.5.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2066,27 +2033,25 @@ dependencies = [
  "ark-ff 0.5.0",
  "ark-grumpkin",
  "ark-poly",
- "ark-serialize 0.5.0",
  "blake3",
  "co-acvm",
  "co-noir-common",
+ "co-ultrahonk",
  "eyre",
  "itertools 0.14.0",
  "mpc-core",
- "mpc-net",
  "noir-types",
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
- "serde",
- "thiserror 2.0.17",
+ "rand_chacha 0.3.1",
  "tracing",
 ]
 
 [[package]]
 name = "co-circom"
 version = "0.10.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -2095,7 +2060,6 @@ dependencies = [
  "bincode 1.3.3",
  "circom-mpc-compiler",
  "circom-mpc-vm",
- "circom-types",
  "clap",
  "co-circom-types",
  "co-groth16",
@@ -2109,6 +2073,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "taceo-circom-types",
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber 0.3.20",
@@ -2117,11 +2082,10 @@ dependencies = [
 [[package]]
 name = "co-circom-types"
 version = "0.6.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
- "circom-types",
  "eyre",
  "mpc-core",
  "num-bigint 0.4.6",
@@ -2129,13 +2093,14 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "taceo-circom-types",
  "tracing",
 ]
 
 [[package]]
 name = "co-groth16"
 version = "0.10.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -2158,7 +2123,7 @@ dependencies = [
 [[package]]
 name = "co-noir"
 version = "0.7.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2192,7 +2157,7 @@ dependencies = [
 [[package]]
 name = "co-noir-common"
 version = "0.2.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -2219,7 +2184,7 @@ dependencies = [
 [[package]]
 name = "co-noir-to-r1cs"
 version = "0.1.0"
-source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=53bf34b9e730d9b2289d539524896224e96e3dfd#53bf34b9e730d9b2289d539524896224e96e3dfd"
+source = "git+https://github.com/TaceoLabs/CoNoir-to-R1CS?rev=c9774c3592d59f7955feec8af82b789bbb847d0b#c9774c3592d59f7955feec8af82b789bbb847d0b"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -2230,7 +2195,6 @@ dependencies = [
  "ark-poly",
  "ark-relations",
  "ark-serialize 0.5.0",
- "circom-types",
  "clap",
  "co-acvm",
  "co-builder",
@@ -2248,13 +2212,14 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "taceo-circom-types",
  "tracing",
 ]
 
 [[package]]
 name = "co-noir-types"
 version = "0.1.1"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-ff 0.5.0",
  "eyre",
@@ -2266,14 +2231,13 @@ dependencies = [
 [[package]]
 name = "co-plonk"
 version = "0.7.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
  "ark-poly",
  "ark-serialize 0.5.0",
- "circom-types",
  "co-circom-types",
  "eyre",
  "itertools 0.14.0",
@@ -2284,6 +2248,7 @@ dependencies = [
  "rayon",
  "serde_json",
  "sha3",
+ "taceo-circom-types",
  "thiserror 2.0.17",
  "tracing",
 ]
@@ -2291,14 +2256,12 @@ dependencies = [
 [[package]]
 name = "co-ultrahonk"
 version = "0.6.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
  "ark-poly",
- "co-acvm",
- "co-builder",
  "co-noir-common",
  "eyre",
  "itertools 0.14.0",
@@ -2306,10 +2269,8 @@ dependencies = [
  "mpc-net",
  "noir-types",
  "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
  "rayon",
- "serde",
  "tracing",
  "ultrahonk",
 ]
@@ -3107,8 +3068,8 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "codespan-reporting 0.11.1",
  "iter-extended",
@@ -3787,8 +3748,8 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 
 [[package]]
 name = "itertools"
@@ -4090,7 +4051,7 @@ dependencies = [
 [[package]]
 name = "mpc-core"
 version = "0.10.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -4121,7 +4082,7 @@ dependencies = [
 [[package]]
 name = "mpc-net"
 version = "0.5.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "byteorder",
  "bytes",
@@ -4136,12 +4097,6 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
 ]
-
-[[package]]
-name = "multimap"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
 name = "ndarray"
@@ -4165,7 +4120,7 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 [[package]]
 name = "noir-types"
 version = "0.1.1"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
  "acir",
  "ark-bn254",
@@ -4181,18 +4136,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_protobuf"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
-dependencies = [
- "color-eyre",
- "prost",
-]
-
-[[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4207,13 +4153,13 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "codespan-reporting 0.11.1",
@@ -4227,8 +4173,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "build-data",
@@ -4247,8 +4193,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "base64",
@@ -4265,8 +4211,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -4297,8 +4243,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -4326,8 +4272,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4337,8 +4283,8 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.15"
-source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.15#83245db91dcf63420ef4bcbbd85b98f397fee663"
+version = "1.0.0-beta.17"
+source = "git+https://github.com/noir-lang/noir/?tag=v1.0.0-beta.17#0d6984c7c643b690e6559351f0cb36ce62b44b26"
 dependencies = [
  "codespan 0.11.1",
  "serde",
@@ -4715,16 +4661,6 @@ dependencies = [
 
 [[package]]
 name = "petgraph"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3672b37090dbd86368a4145bc067582552b29c27377cad4e0a306c97f9bd7772"
-dependencies = [
- "fixedbitset 0.5.7",
- "indexmap 2.12.0",
-]
-
-[[package]]
-name = "petgraph"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
@@ -4873,6 +4809,7 @@ dependencies = [
  "ark-serialize 0.5.0",
  "circom-mpc-vm",
  "clap",
+ "co-builder",
  "co-circom",
  "co-noir",
  "co-noir-common",
@@ -4979,122 +4916,6 @@ dependencies = [
  "tempfile",
  "unarray",
 ]
-
-[[package]]
-name = "prost"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
-dependencies = [
- "bytes",
- "prost-derive",
-]
-
-[[package]]
-name = "prost-build"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
-dependencies = [
- "heck 0.5.0",
- "itertools 0.14.0",
- "log",
- "multimap",
- "once_cell",
- "petgraph 0.7.1",
- "prettyplease",
- "prost",
- "prost-types",
- "regex",
- "syn 2.0.108",
- "tempfile",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
-dependencies = [
- "anyhow",
- "itertools 0.14.0",
- "proc-macro2",
- "quote",
- "syn 2.0.108",
-]
-
-[[package]]
-name = "prost-types"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
-dependencies = [
- "prost",
-]
-
-[[package]]
-name = "protoc-bin-vendored"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1c381df33c98266b5f08186583660090a4ffa0889e76c7e9a5e175f645a67fa"
-dependencies = [
- "protoc-bin-vendored-linux-aarch_64",
- "protoc-bin-vendored-linux-ppcle_64",
- "protoc-bin-vendored-linux-s390_64",
- "protoc-bin-vendored-linux-x86_32",
- "protoc-bin-vendored-linux-x86_64",
- "protoc-bin-vendored-macos-aarch_64",
- "protoc-bin-vendored-macos-x86_64",
- "protoc-bin-vendored-win32",
-]
-
-[[package]]
-name = "protoc-bin-vendored-linux-aarch_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c350df4d49b5b9e3ca79f7e646fde2377b199e13cfa87320308397e1f37e1a4c"
-
-[[package]]
-name = "protoc-bin-vendored-linux-ppcle_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a55a63e6c7244f19b5c6393f025017eb5d793fd5467823a099740a7a4222440c"
-
-[[package]]
-name = "protoc-bin-vendored-linux-s390_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dba5565db4288e935d5330a07c264a4ee8e4a5b4a4e6f4e83fad824cc32f3b0"
-
-[[package]]
-name = "protoc-bin-vendored-linux-x86_32"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8854774b24ee28b7868cd71dccaae8e02a2365e67a4a87a6cd11ee6cdbdf9cf5"
-
-[[package]]
-name = "protoc-bin-vendored-linux-x86_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b38b07546580df720fa464ce124c4b03630a6fb83e05c336fea2a241df7e5d78"
-
-[[package]]
-name = "protoc-bin-vendored-macos-aarch_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89278a9926ce312e51f1d999fee8825d324d603213344a9a706daa009f1d8092"
-
-[[package]]
-name = "protoc-bin-vendored-macos-x86_64"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81745feda7ccfb9471d7a4de888f0652e806d5795b61480605d4943176299756"
-
-[[package]]
-name = "protoc-bin-vendored-win32"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95067976aca6421a523e491fce939a3e65249bac4b977adee0ee9771568e8aa3"
 
 [[package]]
 name = "quick-error"
@@ -6323,6 +6144,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "taceo-ark-serde-compat"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a680eee0351c4c95c6a21cccf3327ae85614254f698ef9e4714f9246347df2d"
+dependencies = [
+ "ark-bls12-381",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-serialize 0.5.0",
+ "serde",
+]
+
+[[package]]
+name = "taceo-circom-types"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c3ebb25dbaef5d1d81d45697a64012f782594d696221af0bed04b12ef436983"
+dependencies = [
+ "ark-bls12-381",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-groth16",
+ "ark-poly",
+ "ark-relations",
+ "ark-serialize 0.5.0",
+ "ark-std 0.5.0",
+ "byteorder",
+ "num-traits",
+ "rayon",
+ "serde",
+ "serde_json",
+ "taceo-ark-serde-compat",
+ "thiserror 2.0.17",
+ "tracing",
+]
+
+[[package]]
 name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6830,23 +6690,19 @@ dependencies = [
 [[package]]
 name = "ultrahonk"
 version = "0.6.0"
-source = "git+https://github.com/TaceoLabs/co-snarks?rev=cd1fb5b260ba80b81eba2a37e036d180eedc090a#cd1fb5b260ba80b81eba2a37e036d180eedc090a"
+source = "git+https://github.com/TaceoLabs/co-snarks?rev=a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4#a9a29c83e32392877c8b2d5dcf6d1bfe15c5c5d4"
 dependencies = [
- "ark-bn254",
  "ark-ec",
  "ark-ff 0.5.0",
  "ark-poly",
- "co-builder",
  "co-noir-common",
  "eyre",
  "itertools 0.14.0",
  "mpc-core",
  "noir-types",
  "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "sha3",
  "tracing",
 ]
 

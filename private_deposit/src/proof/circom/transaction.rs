@@ -16,14 +16,18 @@ impl<K> PrivateDeposit<K, DepositValueShare<F>>
 where
     K: std::hash::Hash + Eq,
 {
-    fn get_transaction_circom_input(
+    pub(crate) fn get_transaction_circom_input(
         sender_old: DepositValueShare<F>,
         receiver_old: Option<DepositValueShare<F>>,
         amount: Rep3PrimeFieldShare<F>,
         amount_blinding: Rep3PrimeFieldShare<F>,
         sender_new_blinding: Rep3PrimeFieldShare<F>,
         receiver_new_blinding: Rep3PrimeFieldShare<F>,
-    ) -> BTreeMap<String, Rep3VmType<F>> {
+    ) -> (
+        BTreeMap<String, Rep3VmType<F>>,
+        Rep3PrimeFieldShare<F>,
+        Rep3PrimeFieldShare<F>,
+    ) {
         let mut inputs = BTreeMap::new();
         inputs.insert(
             "sender_old_balance".to_string(),
@@ -33,18 +37,20 @@ where
             "sender_old_r".to_string(),
             Rep3VmType::from(sender_old.blinding),
         );
-        if let Some(old) = receiver_old {
+        let (receiver_old_amount, receiver_old_blinding) = if let Some(old) = receiver_old {
             inputs.insert(
                 "receiver_old_balance".to_string(),
                 Rep3VmType::from(old.amount),
             );
             inputs.insert("receiver_old_r".to_string(), Rep3VmType::from(old.blinding));
+            (old.amount, old.blinding)
         } else {
             inputs.insert(
                 "receiver_old_balance".to_string(),
                 Rep3VmType::from(F::zero()),
             );
             inputs.insert("receiver_old_r".to_string(), Rep3VmType::from(F::zero()));
+            (Rep3PrimeFieldShare::zero(), Rep3PrimeFieldShare::zero())
         };
         inputs.insert("amount".to_string(), Rep3VmType::from(amount));
         inputs.insert("amount_r".to_string(), Rep3VmType::from(amount_blinding));
@@ -56,7 +62,7 @@ where
             "receiver_new_r".to_string(),
             Rep3VmType::from(receiver_new_blinding),
         );
-        inputs
+        (inputs, receiver_old_amount, receiver_old_blinding)
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -78,7 +84,7 @@ where
         let (sender_old, sender_new, receiver_old, receiver_new) =
             self.transaction(sender_key, receiver_key, amount, rep3_state)?;
 
-        let inputs = Self::get_transaction_circom_input(
+        let (inputs, _, _) = Self::get_transaction_circom_input(
             sender_old,
             receiver_old,
             amount,

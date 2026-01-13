@@ -15,6 +15,7 @@ use mpc_net::{
     Network,
     tcp::{NetworkConfig, TcpNetwork},
 };
+use private_deposit::proof::actionquery::Action;
 use private_deposit::{
     data_structure::{DepositValuePlain, PrivateDeposit},
     proof::{NUM_BATCHED_TRANSACTIONS, TestConfig, transaction_batched::TransactionInput},
@@ -190,11 +191,13 @@ fn benchmarks<R: Rng + CryptoRng>(config: &Config, rng: &mut R) -> eyre::Result<
     let nets: [TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2] =
         TcpNetwork::networks(config.network.to_owned())?;
 
-    transactions_benchmarks(&map, config, &nets, rng)?;
+    // transactions_benchmarks(&map, config, &nets, rng)?;
+    actionqueue_benchmarks(&map, config, &nets, rng)?;
 
     Ok(ExitCode::SUCCESS)
 }
 
+#[expect(unused)]
 fn transactions_benchmarks<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
     config: &Config,
@@ -231,6 +234,29 @@ fn transactions_benchmarks<R: Rng + CryptoRng>(
         &nets[1],
         rng,
     )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+// #[expect(unused)]
+fn actionqueue_benchmarks<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    // Get the R1CS proof schema
+    let pa = TestConfig::get_transaction_batched_program_artifact()?;
+    let (proof_schema, pk, cs) = r1cs::setup_r1cs(pa, rng)?;
+
+    queue_with_r1cs_witness(map, config, &proof_schema, nets, rng)?;
+    queue_groth16_proof(map, config, &proof_schema, &cs, &pk, nets, rng)?;
+
+    let circom = TestConfig::get_transaction_batched_circom()?;
+    let circom_proof_schema = TestConfig::get_transaction_batched_proof_schema(rng)?;
+
+    queue_cocircom_witext(map, config, &circom, nets, rng)?;
+    queue_cocircom_proof(map, config, &circom, &circom_proof_schema, nets, rng)?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -616,6 +642,213 @@ fn transactions_cocircom_proof<R: Rng + CryptoRng>(
         net0,
         net1,
         &mut rep3_state,
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn queue_with_r1cs_witness<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    proof_schema: &NoirProofScheme<F>,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting actionqueue_with_r1cs_witness benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+    for net in nets.iter().take(nets.len() / 2) {
+        rep3_states.push(Rep3State::new(net, A2BType::default())?);
+    }
+
+    let mut action_queue = Vec::with_capacity(NUM_BATCHED_TRANSACTIONS);
+
+    for input in inputs.iter() {
+        action_queue.push(Action::Transfer(
+            input.sender_key,
+            input.receiver_key,
+            input.amount,
+            input.amount_blinding,
+        ));
+    }
+
+    benchmark_blueprint!(
+        config,
+        &format!(
+            "actionqueue + witext (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        PrivateDeposit::process_queue_with_r1cs_witness,
+        map,
+        &nets[0],
+        rep3_states[0].id.prev() as usize,
+        rep3_states[0].id.next() as usize,
+        (
+            action_queue.to_owned(),
+            proof_schema,
+            nets,
+            rep3_states.as_mut_slice().try_into().unwrap()
+        )
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn queue_groth16_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    proof_schema: &NoirProofScheme<F>,
+    cs: &ConstraintMatrices<F>,
+    pk: &ProvingKey<Curve>,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting actionqueue_groth16_proof benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+    for net in nets.iter().take(nets.len() / 2) {
+        rep3_states.push(Rep3State::new(net, A2BType::default())?);
+    }
+
+    let mut action_queue = Vec::with_capacity(NUM_BATCHED_TRANSACTIONS);
+
+    for input in inputs.iter() {
+        action_queue.push(Action::Transfer(
+            input.sender_key,
+            input.receiver_key,
+            input.amount,
+            input.amount_blinding,
+        ));
+    }
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, _, witness) = map.process_queue_with_r1cs_witness(
+        action_queue,
+        proof_schema,
+        nets,
+        rep3_states.as_mut_slice().try_into().unwrap(),
+    )?;
+
+    proof_benchmark(
+        &witness,
+        cs,
+        pk,
+        config,
+        &format!(
+            "actionqueue groth16 proof (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        &nets[0],
+        &nets[1],
+        &mut rep3_states[0],
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn queue_cocircom_witext<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting actionqueue_cocircom_witext benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+    for net in nets.iter().take(nets.len() / 2) {
+        rep3_states.push(Rep3State::new(net, A2BType::default())?);
+    }
+
+    let mut action_queue = Vec::with_capacity(NUM_BATCHED_TRANSACTIONS);
+
+    for input in inputs.iter() {
+        action_queue.push(Action::Transfer(
+            input.sender_key,
+            input.receiver_key,
+            input.amount,
+            input.amount_blinding,
+        ));
+    }
+
+    benchmark_blueprint!(
+        config,
+        &format!(
+            "actionqueue + witext cocircom (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        PrivateDeposit::process_queue_with_cocircom_witext,
+        map,
+        &nets[0],
+        rep3_states[0].id.prev() as usize,
+        rep3_states[0].id.next() as usize,
+        (
+            action_queue.to_owned(),
+            circuit,
+            nets,
+            rep3_states.as_mut_slice().try_into().unwrap()
+        )
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn queue_cocircom_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    proof_schema: &CircomProofSchema<Curve>,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting actionqueue_cocircom_proof benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+    for net in nets.iter().take(nets.len() / 2) {
+        rep3_states.push(Rep3State::new(net, A2BType::default())?);
+    }
+
+    let mut action_queue = Vec::with_capacity(NUM_BATCHED_TRANSACTIONS);
+
+    for input in inputs.iter() {
+        action_queue.push(Action::Transfer(
+            input.sender_key,
+            input.receiver_key,
+            input.amount,
+            input.amount_blinding,
+        ));
+    }
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, _, witness) = map.process_queue_with_cocircom_witext(
+        action_queue,
+        circuit,
+        nets,
+        rep3_states.as_mut_slice().try_into().unwrap(),
+    )?;
+
+    proof_benchmark(
+        &witness,
+        &proof_schema.matrices,
+        &proof_schema.pk,
+        config,
+        &format!(
+            "actionqueue cocircom proof (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        &nets[0],
+        &nets[1],
+        &mut rep3_states[0],
     )?;
 
     Ok(ExitCode::SUCCESS)
