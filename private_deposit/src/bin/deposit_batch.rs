@@ -192,7 +192,8 @@ fn benchmarks<R: Rng + CryptoRng>(config: &Config, rng: &mut R) -> eyre::Result<
         TcpNetwork::networks(config.network.to_owned())?;
 
     // transactions_benchmarks(&map, config, &nets, rng)?;
-    actionqueue_benchmarks(&map, config, &nets, rng)?;
+    // actionqueue_benchmarks(&map, config, &nets, rng)?;
+    actionqueue_compressed_benchmarks(&map, config, &nets, rng)?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -238,7 +239,7 @@ fn transactions_benchmarks<R: Rng + CryptoRng>(
     Ok(ExitCode::SUCCESS)
 }
 
-// #[expect(unused)]
+#[expect(unused)]
 fn actionqueue_benchmarks<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
     config: &Config,
@@ -257,6 +258,22 @@ fn actionqueue_benchmarks<R: Rng + CryptoRng>(
 
     queue_cocircom_witext(map, config, &circom, nets, rng)?;
     queue_cocircom_proof(map, config, &circom, &circom_proof_schema, nets, rng)?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+// #[expect(unused)]
+fn actionqueue_compressed_benchmarks<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    let circom = TestConfig::get_transaction_batched_circom_compressed()?;
+    let circom_proof_schema = TestConfig::get_transaction_batched_proof_schema_compressed(rng)?;
+
+    queue_cocircom_compressed_witext(map, config, &circom, nets, rng)?;
+    queue_cocircom_compressed_proof(map, config, &circom, &circom_proof_schema, nets, rng)?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -844,6 +861,109 @@ fn queue_cocircom_proof<R: Rng + CryptoRng>(
         config,
         &format!(
             "actionqueue cocircom proof (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        &nets[0],
+        &nets[1],
+        &mut rep3_states[0],
+    )?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn queue_cocircom_compressed_witext<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting actionqueue_cocircom_compressed_witext benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+    for net in nets.iter().take(nets.len() / 2) {
+        rep3_states.push(Rep3State::new(net, A2BType::default())?);
+    }
+
+    let mut action_queue = Vec::with_capacity(NUM_BATCHED_TRANSACTIONS);
+
+    for input in inputs.iter() {
+        action_queue.push(Action::Transfer(
+            input.sender_key,
+            input.receiver_key,
+            input.amount,
+            input.amount_blinding,
+        ));
+    }
+
+    benchmark_blueprint!(
+        config,
+        &format!(
+            "compressed: actionqueue + witext cocircom (batch={}, n={})",
+            NUM_BATCHED_TRANSACTIONS, config.num_items
+        ),
+        PrivateDeposit::process_queue_with_cocircom_witext_compressed,
+        map,
+        &nets[0],
+        rep3_states[0].id.prev() as usize,
+        rep3_states[0].id.next() as usize,
+        (
+            action_queue.to_owned(),
+            circuit,
+            nets,
+            rep3_states.as_mut_slice().try_into().unwrap()
+        )
+    );
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn queue_cocircom_compressed_proof<R: Rng + CryptoRng>(
+    map: &ShareMap<F>,
+    config: &Config,
+    circuit: &CoCircomCompilerParsed<F>,
+    proof_schema: &CircomProofSchema<Curve>,
+    nets: &[TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2],
+    rng: &mut R,
+) -> eyre::Result<ExitCode> {
+    tracing::info!("Starting actionqueue_cocircom_compressed_proof benchmarks");
+    let inputs = get_transaction_inputs(map, config.network.my_id, rng)?;
+
+    // init MPC protocol
+    let mut rep3_states = Vec::with_capacity(nets.len() / 2);
+    for net in nets.iter().take(nets.len() / 2) {
+        rep3_states.push(Rep3State::new(net, A2BType::default())?);
+    }
+
+    let mut action_queue = Vec::with_capacity(NUM_BATCHED_TRANSACTIONS);
+
+    for input in inputs.iter() {
+        action_queue.push(Action::Transfer(
+            input.sender_key,
+            input.receiver_key,
+            input.amount,
+            input.amount_blinding,
+        ));
+    }
+
+    // Witness extension
+    let mut map = map.to_owned();
+    let (_, _, witness, _) = map.process_queue_with_cocircom_witext_compressed(
+        action_queue,
+        circuit,
+        nets,
+        rep3_states.as_mut_slice().try_into().unwrap(),
+    )?;
+
+    proof_benchmark(
+        &witness,
+        &proof_schema.matrices,
+        &proof_schema.pk,
+        config,
+        &format!(
+            "compressed: actionqueue cocircom proof (batch={}, n={})",
             NUM_BATCHED_TRANSACTIONS, config.num_items
         ),
         &nets[0],

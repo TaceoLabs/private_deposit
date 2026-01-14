@@ -2,6 +2,13 @@ pragma circom 2.2.2;
 
 include "poseidon2/poseidon2.circom";
 
+template TACEO_PRECOMPUTATION_Poseidon2SpongeInstance(T) {
+    signal input in[T];
+    signal output out[T];
+
+    out <== Poseidon2(T)(in);
+}
+
 template Poseidon2Sponge(N, T) {
     signal input in[N];
     signal output out;
@@ -30,7 +37,7 @@ template Poseidon2Sponge(N, T) {
             states[p][i] = states[p][i] + in[absorbed + i];
         }
         absorbed += remaining;
-        states[p + 1] = Poseidon2(T)(states[p]);
+        states[p + 1] = TACEO_PRECOMPUTATION_Poseidon2SpongeInstance(T)(states[p]);
     }
     out <== states[permutations][0];
 }
