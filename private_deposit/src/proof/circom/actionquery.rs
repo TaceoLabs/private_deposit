@@ -55,7 +55,7 @@ where
 
         let mut result =
             super::poseidon2_circom_commitment_helper::<NUM_TRANSACTION_COMMITMENTS, _, _, _>(
-                [
+                &mut [
                     amount,
                     amount_blinding,
                     sender_old.amount,
@@ -98,7 +98,7 @@ where
         Ok((sender_new, receiver_new, inputs, result))
     }
 
-    fn get_query_transaction_circom_input(
+    pub(crate) fn get_query_transaction_circom_input(
         sender_old: DepositValueShare<F>,
         receiver_old: Option<DepositValueShare<F>>,
         amount: Rep3PrimeFieldShare<F>,
@@ -129,7 +129,7 @@ where
         (inputs, receiver_old_amount, receiver_old_blinding)
     }
 
-    fn get_deposit_input_public_amount_circom(
+    pub(crate) fn get_deposit_input_public_amount_circom(
         receiver_old: Option<DepositValueShare<F>>,
         amount: F,
         amount_blinding: F,
@@ -203,7 +203,7 @@ where
         );
 
         let mut traces = super::poseidon2_circom_commitment_helper::<2, _, _, _>(
-            [
+            &mut [
                 receiver_old_amount,
                 receiver_old_blinding,
                 receiver_new.amount,
@@ -213,7 +213,7 @@ where
             rep3_state,
         )?;
 
-        let plain_traces = super::poseidon2_plain_circom_commitment_helper::<2, _, _>([
+        let plain_traces = super::poseidon2_plain_circom_commitment_helper::<2, 2, _, _>([
             amount,
             F::zero(),
             F::zero(),
@@ -283,7 +283,7 @@ where
         );
 
         let mut traces = super::poseidon2_circom_commitment_helper::<2, _, _, _>(
-            [
+            &mut [
                 sender_old.amount,
                 sender_old.blinding,
                 sender_new.amount,
@@ -293,7 +293,7 @@ where
             rep3_state,
         )?;
 
-        let plain_traces = super::poseidon2_plain_circom_commitment_helper::<2, _, _>([
+        let plain_traces = super::poseidon2_plain_circom_commitment_helper::<2, 2, _, _>([
             amount,
             F::zero(),
             F::zero(),
@@ -348,7 +348,7 @@ where
         Vec<ComponentAcceleratorOutput<Rep3VmType<F>>>,
     )> {
         let mut plain_traces =
-            super::poseidon2_plain_circom_commitment_helper::<1, _, _>([F::zero(), F::zero()])?;
+            super::poseidon2_plain_circom_commitment_helper::<2, 1, _, _>([F::zero(), F::zero()])?;
         plain_traces.push(plain_traces[0].clone());
         plain_traces.push(plain_traces[0].clone());
         plain_traces.push(plain_traces[0].clone());
@@ -386,7 +386,7 @@ where
         Ok((zero.clone(), zero, inputs, plain_traces))
     }
 
-    fn add_inputs_to_circom_map(
+    pub(crate) fn add_inputs_to_circom_map(
         i: usize,
         inputs: Vec<Rep3VmType<F>>,
         circom_map: &mut BTreeMap<String, Rep3VmType<F>>,

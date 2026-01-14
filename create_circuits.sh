@@ -11,7 +11,7 @@ for CIRCUIT in "${CIRCUITS[@]}"; do
   cd ../..
 done
 
-CIRCOM_CIRCUITS=("deposit" "withdraw" "transaction" "transaction_batched")
+CIRCOM_CIRCUITS=("deposit" "withdraw" "transaction" "transaction_batched" "transaction_batched_compressed")
 
 cd circom/main
 for CIRCUIT in "${CIRCOM_CIRCUITS[@]}"; do

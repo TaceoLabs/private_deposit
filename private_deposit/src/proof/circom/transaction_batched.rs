@@ -161,7 +161,7 @@ where
             .context("while constructing MPC VM")?;
 
         let mut result = super::poseidon2_circom_commitment_helper::<NUM_COMMITMENTS, _, _, _>(
-            commitment_inputs,
+            &mut commitment_inputs,
             net0,
             rep3_state,
         )?;

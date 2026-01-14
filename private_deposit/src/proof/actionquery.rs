@@ -318,7 +318,7 @@ where
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn process_dummy() -> eyre::Result<(
+    fn process_dummy() -> eyre::Result<(
         DepositValueShare<F>,
         DepositValueShare<F>,
         Vec<Rep3AcvmType<F>>,
