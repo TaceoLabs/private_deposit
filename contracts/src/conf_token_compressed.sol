@@ -15,10 +15,7 @@ interface IGroth16Verifier {
 }
 
 interface Poseidon2T2_BN254 {
-    function compress(
-        uint256[2] memory inputs,
-        uint256 domain_sep
-    ) external pure returns (uint256);
+    function compress(uint256[2] memory inputs, uint256 domain_sep) external pure returns (uint256);
 }
 
 contract ConfidentialToken {
@@ -50,17 +47,14 @@ contract ConfidentialToken {
     mapping(address => bool) public demo_whitelist;
     bool allow_all;
 
-    // Stores the hash of the commitments computed in the last MPC batch processing
-    bytes32 public alpha;
-
     // BN254 prime field
-    uint256 constant PRIME =
-        0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
+    uint256 constant PRIME = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
     // Batch size for processing actions
     uint256 private constant BATCH_SIZE = 50;
+    // Total number of commitments per batch (5 per action)
+    uint256 private constant NUM_COMMITMENTS = BATCH_SIZE * 5;
     // Commitment to zero balance commit(0, 0)
-    uint256 private constant ZERO_COMMITMENT =
-        0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
+    uint256 private constant ZERO_COMMITMENT = 0x87f763a403ee4109adc79d4a7638af3cb8cb6a33f5b027bd1476ffa97361acb;
 
     uint256 private constant DS = 0xDEADBEEF;
 
@@ -129,12 +123,7 @@ contract ConfidentialToken {
         verifier = IGroth16Verifier(_verifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
         mpcAdress = _mpcAdress;
-        ActionQuery memory aq = ActionQuery(
-            Action.Dummy,
-            address(0),
-            address(0),
-            0
-        );
+        ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
         action_queue.push(aq); // Dummy action at index 0
         action_queue.lowestKey = 1; // We skip the dummy in the iterator
     }
@@ -178,9 +167,7 @@ contract ConfidentialToken {
         return commitment;
     }
 
-    function getActionAtIndex(
-        uint256 index
-    ) public view returns (ActionQuery memory) {
+    function getActionAtIndex(uint256 index) public view returns (ActionQuery memory) {
         return action_queue.get(index);
     }
 
@@ -188,16 +175,11 @@ contract ConfidentialToken {
         return action_queue.map_size();
     }
 
-    function getCiphertextAtIndex(
-        uint256 index
-    ) public view returns (Ciphertext memory) {
+    function getCiphertextAtIndex(uint256 index) public view returns (Ciphertext memory) {
         return shares[index];
     }
 
-    function commit(
-        uint256 input,
-        uint256 randomness
-    ) public view returns (uint256) {
+    function commit(uint256 input, uint256 randomness) public view returns (uint256) {
         if (input >= PRIME) {
             revert NotInPrimeField();
         }
@@ -224,12 +206,7 @@ contract ConfidentialToken {
             revert InvalidAmount();
         }
 
-        ActionQuery memory aq = ActionQuery(
-            Action.Deposit,
-            address(0),
-            receiver,
-            amount
-        );
+        ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
         action_queue.push(aq);
 
         uint256 index = action_queue.highest_key();
@@ -248,23 +225,18 @@ contract ConfidentialToken {
         }
         // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
-        ActionQuery memory aq = ActionQuery(
-            Action.Withdraw,
-            sender,
-            address(0),
-            amount
-        );
+        ActionQuery memory aq = ActionQuery(Action.Withdraw, sender, address(0), amount);
         action_queue.push(aq);
         uint256 index = action_queue.highest_key();
         emit Withdraw(index);
         return index;
     }
 
-    function transfer(
-        address receiver,
-        uint256 amount,
-        Ciphertext calldata ciphertext
-    ) public demoWhitelist returns (uint256) {
+    function transfer(address receiver, uint256 amount, Ciphertext calldata ciphertext)
+        public
+        demoWhitelist
+        returns (uint256)
+    {
         address sender = msg.sender;
         // Amount is just a commitment here
         if (amount >= PRIME) {
@@ -275,9 +247,7 @@ contract ConfidentialToken {
         }
         // We do not check if the sender has a balance here, because it might be topped up by an action in the queue
 
-        if (
-            !isOnBabyJubJubCurve(ciphertext.sender_pk.x, ciphertext.sender_pk.y)
-        ) {
+        if (!isOnBabyJubJubCurve(ciphertext.sender_pk.x, ciphertext.sender_pk.y)) {
             revert NotOnCurve();
         }
 
@@ -288,12 +258,7 @@ contract ConfidentialToken {
         if (ciphertext.r[1] >= PRIME) revert NotInPrimeField();
         if (ciphertext.r[2] >= PRIME) revert NotInPrimeField();
 
-        ActionQuery memory aq = ActionQuery(
-            Action.Transfer,
-            sender,
-            receiver,
-            amount
-        );
+        ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
 
         action_queue.push(aq);
         uint256 index = action_queue.highest_key();
@@ -310,8 +275,7 @@ contract ConfidentialToken {
         // Ciphertext[] calldata ciphertexts
     ) public onlyMPC returns (uint256[] memory) {
         if (
-            senders.length != receivers.length ||
-            receivers.length != amount_commitments.length
+            senders.length != receivers.length || receivers.length != amount_commitments.length
             // || receivers.length != ciphertexts.length
         ) {
             revert InvalidParameters();
@@ -341,12 +305,7 @@ contract ConfidentialToken {
             // if (ciphertexts[i].r[1] >= PRIME) revert NotInPrimeField();
             // if (ciphertexts[i].r[2] >= PRIME) revert NotInPrimeField();
 
-            ActionQuery memory aq = ActionQuery(
-                Action.Transfer,
-                sender,
-                receiver,
-                amount
-            );
+            ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amount);
             action_queue.push(aq);
             uint256 index = action_queue.highest_key();
             // shares[index] = ciphertexts[i];
@@ -376,10 +335,7 @@ contract ConfidentialToken {
     // This function processes a batch of actions, updates the commitments,
     // and removes the actions from the queue.
     // Deposit and Withdraw are rewritten to be transfers
-    function processMPC(
-        TransactionInputCompressed calldata inputs,
-        Groth16Proof calldata proof
-    ) public onlyMPC {
+    function processMPC(TransactionInputCompressed calldata inputs, Groth16Proof calldata proof) public onlyMPC {
         uint256[BATCH_SIZE * 5] memory commitments;
 
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
@@ -390,9 +346,7 @@ contract ConfidentialToken {
             // We do not check the input commitments to be in the prime field, as this is done in the ZK proof verification
 
             if (aq.action == Action.Deposit) {
-                uint256 receiver_old_commitment = getBalanceCommitment(
-                    aq.receiver
-                );
+                uint256 receiver_old_commitment = getBalanceCommitment(aq.receiver);
                 if (inputs.commitments[i * 2] != 0) {
                     revert InvalidCommitment();
                 }
@@ -438,9 +392,7 @@ contract ConfidentialToken {
                 action_queue.remove(index);
             } else if (aq.action == Action.Transfer) {
                 uint256 sender_old_commitment = balanceCommitments[aq.sender];
-                uint256 receiver_old_commitment = getBalanceCommitment(
-                    aq.receiver
-                );
+                uint256 receiver_old_commitment = getBalanceCommitment(aq.receiver);
 
                 // Update the commitments on-chain
                 balanceCommitments[aq.sender] = inputs.commitments[i * 2];
@@ -475,38 +427,17 @@ contract ConfidentialToken {
                 revert InvalidMpcAction();
             }
         }
-        bytes memory zerobytes = new bytes(BATCH_SIZE * 5 * 32);
-        // turn the commitments into big endian bytes for the Sha256 input
-        for (uint256 i = 0; i < BATCH_SIZE * 5; i++) {
-            bytes memory a = abi.encodePacked(commitments[i]);
-            for (uint256 j = 0; j < 32; j++) {
-                zerobytes[i * 32 + j] = a[j];
-            }
-        }
-        // Compute the SHA256 hash of the commitments as expected by the ZK proof
-        alpha = sha256(zerobytes);
+        uint256 alpha = computeSHA256(commitments);
 
-        //turn the hash into a uint256 for the Groth16 public input
-        uint256 hash_uint = uint256(alpha) % PRIME;
+        uint256 gamma = computeUHF(alpha, inputs.beta, commitments);
 
-        uint256 gamma = computeUHF(hash_uint, inputs.beta, commitments);
-
-        if (
-            !verifier.verifyProof(
-                proof.pA,
-                proof.pB,
-                proof.pC,
-                [inputs.beta, gamma, hash_uint]
-            )
-        ) {
+        if (!verifier.verifyProof(proof.pA, proof.pB, proof.pC, [inputs.beta, gamma, alpha])) {
             revert InvalidProof();
         }
         emit ProcessedMPC(inputs.action_index);
     }
 
-    function read_queue(
-        uint256 num_items
-    )
+    function read_queue(uint256 num_items)
         public
         view
         returns (uint256[] memory, ActionQuery[] memory, Ciphertext[] memory)
@@ -526,16 +457,13 @@ contract ConfidentialToken {
             if (actions[i].action == Action.Transfer) {
                 cts[i] = shares[it];
             }
-            (it, ) = action_queue.next_key(it);
+            (it,) = action_queue.next_key(it);
         }
         return (keys, actions, cts);
     }
 
     // Check if point is on curve: a*x^2 + y^2 = 1 + d*x^2*y^2
-    function isOnBabyJubJubCurve(
-        uint256 x,
-        uint256 y
-    ) public pure returns (bool) {
+    function isOnBabyJubJubCurve(uint256 x, uint256 y) public pure returns (bool) {
         if (x == 0 && y == 1) return true;
         if (x >= PRIME || y >= PRIME) return false;
 
@@ -547,19 +475,24 @@ contract ConfidentialToken {
         return addmod(axx, yy, PRIME) == addmod(1, dxxyy, PRIME);
     }
 
-    function computeUHF(
-        uint256 alphaParam,
-        uint256 beta,
-        uint256[250] memory x
-    ) public pure returns (uint256 gamma) {
+    function computeUHF(uint256 alphaParam, uint256 beta, uint256[NUM_COMMITMENTS] memory x)
+        public
+        pure
+        returns (uint256 gamma)
+    {
         uint256 seed = addmod(alphaParam, beta, PRIME);
-        uint256[250] memory muls;
 
-        muls[249] = 0;
-        for (uint256 i = 249; i > 0; i--) {
-            muls[i - 1] = mulmod(seed, addmod(muls[i], x[i], PRIME), PRIME);
+        uint256 mul = 0;
+        for (uint256 i = NUM_COMMITMENTS - 1; i > 0; i--) {
+            mul = mulmod(seed, addmod(mul, x[i], PRIME), PRIME);
         }
 
-        gamma = addmod(muls[0], x[0], PRIME);
+        gamma = addmod(mul, x[0], PRIME);
+    }
+
+    function computeSHA256(uint256[NUM_COMMITMENTS] memory commitments) public pure returns (uint256 alpha) {
+        bytes32 hash = sha256(abi.encodePacked(commitments));
+        alpha = uint256(hash);
+        alpha = (alpha << 3) >> 3; // Drop three bits from the calculated hash
     }
 }

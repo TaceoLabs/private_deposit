@@ -185,8 +185,8 @@ where
             ComponentAcceleratorOutput::new(
                 decomp_amount
                     .remove(0)
-                    .iter()
-                    .map(|x| Rep3VmType::from(*x))
+                    .into_iter()
+                    .map(Rep3VmType::from)
                     .collect_vec(),
                 Vec::new(),
             ),
@@ -376,18 +376,11 @@ where
                 Vec::new(),
             ),
         );
-        let inputs = vec![Rep3VmType::default(); 8];
-
-        // If not zero, this would need to into the output accordingly
-        // let ff_commitments_public = super::feed_forward_public::<2, 1, 2, _>(
-        //     states_public.try_into().expect("should fit"),
-        //     [F::zero(); 2],
-        // );
 
         Ok((
             zero.clone(),
             zero,
-            inputs,
+            vec![Rep3VmType::default(); 8],
             plain_traces,
             [first_state_public; NUM_TRANSACTION_COMMITMENTS],
         ))

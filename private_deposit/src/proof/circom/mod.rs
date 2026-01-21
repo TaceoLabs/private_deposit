@@ -122,8 +122,10 @@ pub(crate) fn compression_commitment_helper<
         .flat_map(|x| {
             let x: BigUint = (*x).into();
             let mut bytes = x.to_bytes_be();
-            while bytes.len() < 32 {
-                bytes.insert(0, 0u8);
+            if bytes.len() < 32 {
+                let mut padded = vec![0u8; 32 - bytes.len()];
+                padded.extend_from_slice(&bytes);
+                bytes = padded;
             }
             bytes
         })
@@ -132,12 +134,14 @@ pub(crate) fn compression_commitment_helper<
     let mut hasher = Sha256::new();
     hasher.update(opened_commitments_as_bytes);
     let sha_hash = hasher.finalize();
-    let alpha = F::from_be_bytes_mod_order(&sha_hash);
+    let mut alpha = BigUint::from_bytes_be(&sha_hash);
+    let mask = (BigUint::from(1u8) << 253) - BigUint::from(1u8);
+    alpha &= mask; // Drop three bits from the calculated hash
 
     let (beta_traces, _) =
         poseidon2_plain_sponge_circom_helper::<T_SPONGE, I, _>(opened_commitments)?;
 
-    Ok((beta_traces, alpha))
+    Ok((beta_traces, F::from(alpha)))
 }
 
 fn poseidon2_plain_sponge_circom_helper<const T: usize, const I2: usize, F: PrimeField>(
@@ -146,46 +150,31 @@ fn poseidon2_plain_sponge_circom_helper<const T: usize, const I2: usize, F: Prim
     let domain_separator = F::from(DOMAIN_SEPARATOR);
     let hasher = Poseidon2::<F, T, 5>::default();
     let permutations = I2.div_ceil(T - 1);
-    let mut states = vec![[F::zero(); T]; permutations + 1];
+    let mut states = [F::zero(); T];
 
     // Initialize the state
-    states[0][T - 1] = domain_separator;
+    states[T - 1] = domain_separator;
 
     let mut traces = Vec::with_capacity(permutations);
     let mut absorbed = 0;
-    for p in 0..permutations {
+    for _ in 0..permutations {
         let mut remaining = I2 - absorbed;
         if remaining >= T - 1 {
             remaining = T - 1;
         }
         for i in 0..remaining {
-            states[p][i] += input[absorbed + i];
+            states[i] += input[absorbed + i];
         }
         absorbed += remaining;
-        let res = hasher.plain_permutation_intermediate(states[p])?;
-        states[p + 1] = res.0;
+        let res = hasher.plain_permutation_intermediate(states)?;
+        states = res.0;
         traces.push(ComponentAcceleratorOutput::new(
-            res.0.iter().map(|x| (*x).into()).collect(),
-            res.1.iter().map(|x| (*x).into()).collect(),
+            res.0.into_iter().map(|x| x.into()).collect(),
+            res.1.into_iter().map(|x| x.into()).collect(),
         ));
     }
 
-    Ok((traces, states[permutations][0]))
-}
-
-// NOTE FF: I checked and apparently the muls in the uhf computation are only public*shared or public*public, so precomputation is not needed
-#[expect(unused)]
-fn compute_uhf<F: PrimeField, const N: usize>(alpha: F, beta: F, q: [F; N]) -> (Vec<F>, F) {
-    assert!(N >= 1);
-
-    let seed = alpha + beta;
-    let mut muls = vec![F::zero(); N];
-
-    for i in N - 1..0 {
-        muls[i - 1] = seed * (q[i] + muls[i]);
-    }
-    let gamma = muls[0] + q[0];
-    (muls, gamma)
+    Ok((traces, states[0]))
 }
 
 pub(crate) fn poseidon2_plain_circom_commitment_helper<
