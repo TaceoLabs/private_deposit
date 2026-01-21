@@ -195,16 +195,16 @@ where
         let ff_commmitments_shared =
             super::feed_forward_shared::<2, 2, 4, _>(state, input_commitment);
 
-        let ff_commitments_public = super::feed_forward_public::<2, 2, 4, _>(
-            states_public.try_into().expect("should fit"),
-            [amount, F::zero(), F::zero(), F::zero()],
+        let ff_commitments_public = super::feed_forward_public::<2, 1, 2, _>(
+            states_public[..2].try_into().expect("should fit"),
+            [amount, F::zero()],
         );
 
         let opened_commitments = arithmetic::open_vec(&ff_commmitments_shared, net0)?;
 
         let opened_commitments_final = [
             ff_commitments_public[0],
-            ff_commitments_public[1],
+            states_public[2],
             opened_commitments[0],
             opened_commitments[1],
             ff_commitments_public[0],
@@ -284,8 +284,8 @@ where
             1,
             ComponentAcceleratorOutput::new(
                 decomp_sender
-                    .iter()
-                    .map(|x| Rep3VmType::from(*x))
+                    .into_iter()
+                    .map(Rep3VmType::from)
                     .collect_vec(),
                 Vec::new(),
             ),
@@ -295,8 +295,8 @@ where
             ComponentAcceleratorOutput::new(
                 decomp_amount
                     .remove(0)
-                    .iter()
-                    .map(|x| Rep3VmType::from(*x))
+                    .into_iter()
+                    .map(Rep3VmType::from)
                     .collect_vec(),
                 Vec::new(),
             ),
@@ -305,9 +305,9 @@ where
         let ff_commmitments_shared =
             super::feed_forward_shared::<2, 2, 4, _>(state, input_commitment);
 
-        let ff_commitments_public = super::feed_forward_public::<2, 2, 4, _>(
-            states_public.try_into().expect("should fit"),
-            [amount, F::zero(), F::zero(), F::zero()],
+        let ff_commitments_public = super::feed_forward_public::<2, 1, 2, _>(
+            states_public[..2].try_into().expect("should fit"),
+            [amount, F::zero()],
         );
 
         let opened_commitments = arithmetic::open_vec(&ff_commmitments_shared, net0)?;
@@ -315,7 +315,7 @@ where
         let opened_commitments_final = [
             opened_commitments[0],
             opened_commitments[1],
-            ff_commitments_public[1],
+            states_public[2],
             ff_commitments_public[0],
             ff_commitments_public[0],
         ];
@@ -340,7 +340,7 @@ where
         let mut plain_traces =
             super::poseidon2_plain_circom_commitment_helper::<2, 1, _, _>([F::zero(), F::zero()])?;
 
-        let states_public = plain_traces.iter().flat_map(|trace| trace.0).collect_vec();
+        let first_state_public = plain_traces[0].0[0];
 
         plain_traces.push(plain_traces[0].clone());
         plain_traces.push(plain_traces[0].clone());
@@ -354,11 +354,11 @@ where
             );
 
         let mut plain_traces: Vec<ComponentAcceleratorOutput<Rep3VmType<F>>> = plain_traces
-            .iter()
+            .into_iter()
             .map(|trace| {
                 ComponentAcceleratorOutput::new(
-                    trace.0.iter().map(|x| (*x).into()).collect(),
-                    trace.1.iter().map(|x| (*x).into()).collect(),
+                    trace.0.into_iter().map(|x| x.into()).collect(),
+                    trace.1.into_iter().map(|x| x.into()).collect(),
                 )
             })
             .collect();
@@ -378,17 +378,18 @@ where
         );
         let inputs = vec![Rep3VmType::default(); 8];
 
-        let ff_commitments_public = super::feed_forward_public::<2, 1, 2, _>(
-            states_public.try_into().expect("should fit"),
-            [F::zero(); 2],
-        );
+        // If not zero, this would need to into the output accordingly
+        // let ff_commitments_public = super::feed_forward_public::<2, 1, 2, _>(
+        //     states_public.try_into().expect("should fit"),
+        //     [F::zero(); 2],
+        // );
 
         Ok((
             zero.clone(),
             zero,
             inputs,
             plain_traces,
-            [ff_commitments_public[0]; NUM_TRANSACTION_COMMITMENTS],
+            [first_state_public; NUM_TRANSACTION_COMMITMENTS],
         ))
     }
 
