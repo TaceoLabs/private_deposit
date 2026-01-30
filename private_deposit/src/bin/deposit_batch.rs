@@ -192,7 +192,7 @@ fn benchmarks<R: Rng + CryptoRng>(config: &Config, rng: &mut R) -> eyre::Result<
         TcpNetwork::networks(config.network.to_owned())?;
 
     // transactions_benchmarks(&map, config, &nets, rng)?;
-    // actionqueue_benchmarks(&map, config, &nets, rng)?;
+    actionqueue_benchmarks(&map, config, &nets, rng)?;
     actionqueue_compressed_benchmarks(&map, config, &nets, rng)?;
 
     Ok(ExitCode::SUCCESS)
@@ -239,7 +239,7 @@ fn transactions_benchmarks<R: Rng + CryptoRng>(
     Ok(ExitCode::SUCCESS)
 }
 
-#[expect(unused)]
+// #[expect(unused)]
 fn actionqueue_benchmarks<R: Rng + CryptoRng>(
     map: &ShareMap<F>,
     config: &Config,
