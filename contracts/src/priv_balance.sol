@@ -3,6 +3,9 @@ pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
 import {Action, ActionQuery, QueryMap, QueryMapLib, Iterator} from "./action_queue.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 interface IGroth16Verifier {
     function verifyProof(
@@ -17,13 +20,16 @@ interface Poseidon2T2_BN254 {
     function compress(uint256[2] memory inputs, uint256 domain_sep) external pure returns (uint256);
 }
 
-contract PrivateBalance {
+contract PrivateBalance is EIP712 {
     using QueryMapLib for QueryMap;
 
     // The groth16 verifier contract
     IGroth16Verifier public immutable verifier;
     // The poseidon2 contract
     Poseidon2T2_BN254 public immutable poseidon2;
+
+    // The USDC token contract
+    IERC20 public immutable usdc;
 
     // The address of the MPC network allowed to post proofs
     address mpcAdress;
@@ -44,6 +50,9 @@ contract PrivateBalance {
     // Stores the secret shares of the amount and randomness for a transfer
     mapping(uint256 => Ciphertext) private shares;
 
+    // Nonces used for transferFrom replay protection
+    mapping(address => mapping(uint256 => bool)) public usedNonces;
+
     // For the demo we only allow a list of certain addresses to interact with the contract. We can however also instantiate it to allow everyone using the allow_all flag.
     mapping(address => bool) public demo_whitelist;
     bool allow_all;
@@ -59,6 +68,11 @@ contract PrivateBalance {
     uint256 public constant A = 168700;
     uint256 public constant D = 168696;
 
+    // EIP-712 type hash for transferFrom authorization
+    bytes32 public constant TRANSFER_FROM_TYPEHASH = keccak256(
+        "TransferFrom(address sender,address receiver,uint256 amountCommitment,bytes32 ciphertextHash,uint256 nonce,uint256 deadline)"
+    );
+
     // The error codes
     error Unauthorized();
     error InvalidProof();
@@ -70,6 +84,9 @@ contract PrivateBalance {
     error InvalidCommitment();
     error NotOnCurve();
     error InvalidParameters();
+    error ExpiredDeadline();
+    error NonceAlreadyUsed();
+    error InvalidSignature();
 
     modifier onlyMPC() {
         if (msg.sender != mpcAdress) revert Unauthorized();
@@ -89,11 +106,12 @@ contract PrivateBalance {
         address _verifierAddress,
         address _poseidon2Address,
         address _mpcAdress,
+        address _usdcAddress,
         BabyJubJubElement memory _mpc_pk1,
         BabyJubJubElement memory _mpc_pk2,
         BabyJubJubElement memory _mpc_pk3,
         bool _allow_all
-    ) {
+    ) EIP712("ConfidentialToken", "1") {
         mpc_pk1 = _mpc_pk1;
         mpc_pk2 = _mpc_pk2;
         mpc_pk3 = _mpc_pk3;
@@ -112,6 +130,7 @@ contract PrivateBalance {
         verifier = IGroth16Verifier(_verifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
         mpcAdress = _mpcAdress;
+        usdc = IERC20(_usdcAddress);
         ActionQuery memory aq = ActionQuery(Action.Dummy, address(0), address(0), 0);
         action_queue.insert(0, aq); // Dummy action at index 0
         next_action_queue_index = 1;
@@ -204,16 +223,17 @@ contract PrivateBalance {
         payable(mpcAdress).transfer(address(this).balance);
     }
 
-    function deposit() public payable demoWhitelist returns (uint256) {
+    function deposit(uint256 amount) public demoWhitelist returns (uint256) {
         address receiver = msg.sender;
-        uint256 amount = msg.value;
-        // This is at most 2^80 / 10^18 = 1_208_925.8 ETH
+
         if (amount > 0xFFFFFFFFFFFFFFFFFFFF) {
             revert InvalidAmount();
         }
         if (amount == 0) {
             revert InvalidAmount();
         }
+
+        usdc.transferFrom(receiver, address(this), amount);
 
         ActionQuery memory aq = ActionQuery(Action.Deposit, address(0), receiver, amount);
         uint256 index = getNextFreeQueueIndex();
@@ -269,6 +289,63 @@ contract PrivateBalance {
         action_queue.insert(index, aq);
         shares[index] = ciphertext;
         return index;
+    }
+
+    function transferFrom(
+        address sender,
+        address receiver,
+        uint256 amountCommitment,
+        Ciphertext calldata ciphertext,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) public returns (uint256) {
+        // 1. Check deadline
+        if (block.timestamp > deadline) revert ExpiredDeadline();
+
+        // 2. Check and consume nonce
+        if (usedNonces[sender][nonce]) revert NonceAlreadyUsed();
+        usedNonces[sender][nonce] = true;
+
+        // 3. Verify EIP-712 signature
+        bytes32 structHash = keccak256(abi.encode(
+            TRANSFER_FROM_TYPEHASH,
+            sender,
+            receiver,
+            amountCommitment,
+            keccak256(abi.encode(ciphertext)),
+            nonce,
+            deadline
+        ));
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address recoveredSigner = ECDSA.recover(digest, signature);
+        if (recoveredSigner != sender) revert InvalidSignature();
+
+        // 4. Same validation as transfer()
+        if (amountCommitment >= PRIME) revert NotInPrimeField();
+        if (sender == receiver) revert InvalidTransfer();
+
+        if (!isOnBabyJubJubCurve(ciphertext.sender_pk.x, ciphertext.sender_pk.y)) {
+            revert NotOnCurve();
+        }
+
+        if (ciphertext.amount[0] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[1] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.amount[2] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.r[0] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.r[1] >= PRIME) revert NotInPrimeField();
+        if (ciphertext.r[2] >= PRIME) revert NotInPrimeField();
+
+        // 5. Queue action (sender is the signer, not msg.sender)
+        ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amountCommitment);
+        uint256 index = getNextFreeQueueIndex();
+        action_queue.insert(index, aq);
+        shares[index] = ciphertext;
+        return index;
+    }
+
+    function isNonceUsed(address account, uint256 nonce) public view returns (bool) {
+        return usedNonces[account][nonce];
     }
 
     function transferBatch(
