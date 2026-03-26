@@ -16,6 +16,15 @@ interface IGroth16Verifier {
     ) external view returns (bool);
 }
 
+interface IClientTransferVerifier {
+    function verifyProof(
+        uint256[2] calldata _pA,
+        uint256[2][2] calldata _pB,
+        uint256[2] calldata _pC,
+        uint256[15] calldata _pubSignals
+    ) external view returns (bool);
+}
+
 interface Poseidon2T2_BN254 {
     function compress(uint256[2] memory inputs, uint256 domain_sep) external pure returns (uint256);
 }
@@ -23,8 +32,10 @@ interface Poseidon2T2_BN254 {
 contract PrivateBalance is EIP712 {
     using QueryMapLib for QueryMap;
 
-    // The groth16 verifier contract
+    // The groth16 verifier contract (MPC batch proof)
     IGroth16Verifier public immutable verifier;
+    // The client transfer verifier (client ZK proof for commitment + shares)
+    IClientTransferVerifier public immutable clientVerifier;
     // The poseidon2 contract
     Poseidon2T2_BN254 public immutable poseidon2;
 
@@ -104,6 +115,7 @@ contract PrivateBalance is EIP712 {
 
     constructor(
         address _verifierAddress,
+        address _clientVerifierAddress,
         address _poseidon2Address,
         address _mpcAdress,
         address _usdcAddress,
@@ -128,6 +140,7 @@ contract PrivateBalance is EIP712 {
         }
 
         verifier = IGroth16Verifier(_verifierAddress);
+        clientVerifier = IClientTransferVerifier(_clientVerifierAddress);
         poseidon2 = Poseidon2T2_BN254(_poseidon2Address);
         mpcAdress = _mpcAdress;
         usdc = IERC20(_usdcAddress);
@@ -298,7 +311,8 @@ contract PrivateBalance is EIP712 {
         Ciphertext calldata ciphertext,
         uint256 nonce,
         uint256 deadline,
-        bytes calldata signature
+        bytes calldata signature,
+        Groth16Proof calldata clientProof
     ) public returns (uint256) {
         // 1. Check deadline
         if (block.timestamp > deadline) revert ExpiredDeadline();
@@ -336,7 +350,31 @@ contract PrivateBalance is EIP712 {
         if (ciphertext.r[1] >= PRIME) revert NotInPrimeField();
         if (ciphertext.r[2] >= PRIME) revert NotInPrimeField();
 
-        // 5. Queue action (sender is the signer, not msg.sender)
+        // 5. Verify client ZK proof (full: encrypt_pk + commitment + ciphertexts + mpc_pks)
+        uint256[15] memory pubSignals;
+        // Outputs: encrypt_pk (2), amount_c (1), ciphertexts (6)
+        pubSignals[0] = ciphertext.sender_pk.x;
+        pubSignals[1] = ciphertext.sender_pk.y;
+        pubSignals[2] = amountCommitment;
+        pubSignals[3] = ciphertext.amount[0];
+        pubSignals[4] = ciphertext.r[0];
+        pubSignals[5] = ciphertext.amount[1];
+        pubSignals[6] = ciphertext.r[1];
+        pubSignals[7] = ciphertext.amount[2];
+        pubSignals[8] = ciphertext.r[2];
+        // Public inputs: mpc_pks (6)
+        pubSignals[9] = mpc_pk1.x;
+        pubSignals[10] = mpc_pk1.y;
+        pubSignals[11] = mpc_pk2.x;
+        pubSignals[12] = mpc_pk2.y;
+        pubSignals[13] = mpc_pk3.x;
+        pubSignals[14] = mpc_pk3.y;
+
+        if (!clientVerifier.verifyProof(
+            clientProof.pA, clientProof.pB, clientProof.pC, pubSignals
+        )) revert InvalidProof();
+
+        // 6. Queue action (sender is the signer, not msg.sender)
         ActionQuery memory aq = ActionQuery(Action.Transfer, sender, receiver, amountCommitment);
         uint256 index = getNextFreeQueueIndex();
         action_queue.insert(index, aq);
