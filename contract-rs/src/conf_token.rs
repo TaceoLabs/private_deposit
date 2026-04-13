@@ -1,8 +1,10 @@
 use crate::F;
 use alloy::{
-    network::EthereumWallet,
+    network::{Ethereum, EthereumWallet},
     primitives::{Address, Log, U256},
-    providers::{DynProvider, Provider as _, ProviderBuilder, WsConnect},
+    providers::{
+        DynProvider, PendingTransactionBuilder, Provider as _, ProviderBuilder, WsConnect,
+    },
     rpc::types::{Filter, TransactionReceipt},
     sol,
     sol_types::SolEvent,
@@ -334,35 +336,15 @@ impl ConfidentialTokenContract {
         &self,
         from: Address,
         amount: F,
-    ) -> eyre::Result<(usize, TransactionReceipt)> {
+    ) -> eyre::Result<PendingTransactionBuilder<Ethereum>> {
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
-
-        let receipt = contract
+        contract
             .deposit()
             .value(crate::field_to_u256(amount))
             .from(from)
             .send()
             .await
-            .context("while broadcasting to network")?
-            .get_receipt()
-            .await
-            .context("while receiving receipt for transaction")?;
-
-        if receipt.status() {
-            tracing::info!(
-                "deposit done with transaction hash: {}",
-                receipt.transaction_hash
-            );
-        } else {
-            eyre::bail!("cannot finish transaction: {receipt:?}");
-        }
-
-        let result = receipt
-            .decoded_log::<ConfidentialToken::Deposit>()
-            .ok_or_else(|| eyre::eyre!("no Deposit event found in transaction receipt logs"))?;
-        let action_index = crate::u256_to_usize(result.action_index)?;
-
-        Ok((action_index, receipt))
+            .context("while broadcasting to network")
     }
 
     pub async fn withdraw(&self, amount: F) -> eyre::Result<(usize, TransactionReceipt)> {
@@ -505,13 +487,12 @@ impl ConfidentialTokenContract {
         to: &[Address],
         amount: &[F],
         // ciphertext: &[Ciphertext],
-    ) -> eyre::Result<(Vec<usize>, TransactionReceipt)> {
+    ) -> eyre::Result<PendingTransactionBuilder<Ethereum>> {
         assert_eq!(from.len(), to.len());
         assert_eq!(from.len(), amount.len());
         // assert_eq!(from.len(), ciphertext.len());
         let contract = ConfidentialToken::new(self.contract_address, self.provider.clone());
-
-        let receipt = contract
+        contract
             .transferBatch(
                 from.to_vec(),
                 to.to_vec(),
@@ -521,7 +502,13 @@ impl ConfidentialTokenContract {
             .gas(5_000_000)
             .send()
             .await
-            .context("while broadcasting to network")?
+            .context("while broadcasting to network")
+    }
+
+    pub async fn transfer_batched_get_receipt(
+        pending: PendingTransactionBuilder<Ethereum>,
+    ) -> eyre::Result<(Vec<usize>, TransactionReceipt)> {
+        let receipt = pending
             .get_receipt()
             .await
             .context("while receiving receipt for transaction")?;

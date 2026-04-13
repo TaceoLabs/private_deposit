@@ -1,6 +1,7 @@
 use alloy::{
+    network::Ethereum,
     primitives::{Address, U256},
-    providers::DynProvider,
+    providers::{DynProvider, PendingTransactionBuilder},
     rpc::types::TransactionReceipt,
     sol,
 };
@@ -61,53 +62,27 @@ impl USDCTokenContract {
         from: Address,
         receiver: Address,
         amount: U256,
-    ) -> eyre::Result<TransactionReceipt> {
+    ) -> eyre::Result<PendingTransactionBuilder<Ethereum>> {
         let contract = USDCToken::new(self.contract_address, self.provider.clone());
-
-        let receipt = contract
+        contract
             .approve(receiver, amount)
             .from(from)
             .send()
             .await
-            .context("while broadcasting to network")?
-            .get_receipt()
-            .await
-            .context("while registering watcher for transaction")?;
-
-        if receipt.status() {
-            tracing::info!(
-                "approve done with transaction hash: {}",
-                receipt.transaction_hash
-            );
-        } else {
-            eyre::bail!("cannot finish approve: {receipt:?}");
-        }
-
-        Ok(receipt)
+            .context("while broadcasting to network")
     }
 
-    pub async fn mint(&self, receiver: Address, amount: U256) -> eyre::Result<TransactionReceipt> {
+    pub async fn mint(
+        &self,
+        receiver: Address,
+        amount: U256,
+    ) -> eyre::Result<PendingTransactionBuilder<Ethereum>> {
         let contract = USDCToken::new(self.contract_address, self.provider.clone());
-
-        let receipt = contract
+        contract
             .mint(receiver, amount)
             .send()
             .await
-            .context("while broadcasting to network")?
-            .get_receipt()
-            .await
-            .context("while registering watcher for transaction")?;
-
-        if receipt.status() {
-            tracing::info!(
-                "mint done with transaction hash: {}",
-                receipt.transaction_hash
-            );
-        } else {
-            eyre::bail!("cannot finish mint: {receipt:?}");
-        }
-
-        Ok(receipt)
+            .context("while broadcasting to network")
     }
 
     pub async fn transfer(
