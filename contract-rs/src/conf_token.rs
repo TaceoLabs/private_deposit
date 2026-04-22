@@ -382,7 +382,6 @@ impl ConfidentialTokenContract {
                 amount.iter().map(|x| crate::field_to_u256(*x)).collect(),
                 // ciphertext.to_vec(),
             )
-            .gas(5_000_000)
             .send()
             .await
             .context("while broadcasting to network")?
@@ -445,7 +444,6 @@ impl ConfidentialTokenContract {
 
         let receipt = contract
             .removeAllOpenActions()
-            .gas(20_000_000)
             .send()
             .await
             .context("while broadcasting to network")?
@@ -475,7 +473,6 @@ impl ConfidentialTokenContract {
 
         let receipt = contract
             .processMPC(inputs, proof, nonce)
-            .gas(10_000_000)
             .send()
             .await
             .context("while broadcasting to network")?
