@@ -191,9 +191,15 @@ fn benchmarks<R: Rng + CryptoRng>(config: &Config, rng: &mut R) -> eyre::Result<
     let nets: [TcpNetwork; NUM_BATCHED_TRANSACTIONS * 2] =
         TcpNetwork::networks(config.network.to_owned())?;
 
-    // transactions_benchmarks(&map, config, &nets, rng)?;
-    // actionqueue_benchmarks(&map, config, &nets, rng)?;
-    actionqueue_compressed_benchmarks(&map, config, &nets, rng)?;
+    tracing::info!(
+        "Starting private deposit benchmarks with batch size: {} and number of items: {}",
+        NUM_BATCHED_TRANSACTIONS,
+        num_items
+    );
+
+    transactions_benchmarks(&map, config, &nets, rng)?;
+    actionqueue_benchmarks(&map, config, &nets, rng)?;
+    // actionqueue_compressed_benchmarks(&map, config, &nets, rng)?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -218,23 +224,23 @@ fn transactions_benchmarks<R: Rng + CryptoRng>(
         nets[0..NUM_BATCHED_TRANSACTIONS].try_into().unwrap(),
         rng,
     )?;
-    transactions_with_r1cs_witext(map, config, &proof_schema, nets, rng)?;
-    transactions_groth16_proof(map, config, &proof_schema, &cs, &pk, nets, rng)?;
+    // transactions_with_r1cs_witext(map, config, &proof_schema, nets, rng)?;
+    // transactions_groth16_proof(map, config, &proof_schema, &cs, &pk, nets, rng)?;
 
-    let circom = TestConfig::get_transaction_batched_circom()?;
-    let circom_proof_schema = TestConfig::get_transaction_batched_proof_schema(rng)?;
+    // let circom = TestConfig::get_transaction_batched_circom()?;
+    // let circom_proof_schema = TestConfig::get_transaction_batched_proof_schema(rng)?;
 
-    // TODO the following witness extensions are singlethreaded!
-    transactions_cocircom_witext(map, config, &circom, &nets[0], &nets[1], rng)?;
-    transactions_cocircom_proof(
-        map,
-        config,
-        &circom,
-        &circom_proof_schema,
-        &nets[0],
-        &nets[1],
-        rng,
-    )?;
+    // // TODO the following witness extensions are singlethreaded!
+    // transactions_cocircom_witext(map, config, &circom, &nets[0], &nets[1], rng)?;
+    // transactions_cocircom_proof(
+    //     map,
+    //     config,
+    //     &circom,
+    //     &circom_proof_schema,
+    //     &nets[0],
+    //     &nets[1],
+    //     rng,
+    // )?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -312,7 +318,8 @@ macro_rules! benchmark_blueprint {
         let mut send_receive_prev = Vec::with_capacity($config.runs);
         let mut send_receive_next = Vec::with_capacity($config.runs);
 
-        for _ in 0..$config.runs {
+        // i == 0 is a dry run to warm up caches/connections and is not recorded
+        for i in 0..$config.runs + 1 {
             let stats_before = $net.get_connection_stats();
 
             let mut map = $map.to_owned();
@@ -321,31 +328,34 @@ macro_rules! benchmark_blueprint {
             $function(&mut map, $( $args, )*)?;
 
             let duration = start.elapsed().as_micros() as f64;
-            times.push(duration);
 
             let stats_after = $net.get_connection_stats();
             let stats = stats_after.get_diff_to(&stats_before);
 
-            send_receive_prev.push((
-                stats
-                    .get(&$id_prev)
-                    .expect("invalid party id in stats")
-                    .0,
-                stats
-                    .get(&$id_prev)
-                    .expect("invalid party id in stats")
-                    .1,
-            ));
-            send_receive_next.push((
-                stats
-                    .get(&$id_next)
-                    .expect("invalid party id in stats")
-                    .0,
-                stats
-                    .get(&$id_next)
-                    .expect("invalid party id in stats")
-                    .1,
-            ));
+            if i > 0 {
+                times.push(duration);
+
+                send_receive_prev.push((
+                    stats
+                        .get(&$id_prev)
+                        .expect("invalid party id in stats")
+                        .0,
+                    stats
+                        .get(&$id_prev)
+                        .expect("invalid party id in stats")
+                        .1,
+                ));
+                send_receive_next.push((
+                    stats
+                        .get(&$id_next)
+                        .expect("invalid party id in stats")
+                        .0,
+                    stats
+                        .get(&$id_next)
+                        .expect("invalid party id in stats")
+                        .1,
+                ));
+            }
         }
 
         sleep(SLEEP);
@@ -384,7 +394,8 @@ fn proof_benchmark(
     let mut send_receive_prev = Vec::with_capacity(config.runs);
     let mut send_receive_next = Vec::with_capacity(config.runs);
 
-    for _ in 0..config.runs {
+    // i == 0 is a dry run to warm up caches/connections and is not recorded
+    for i in 0..config.runs + 1 {
         let stats_before = net0.get_connection_stats();
 
         let witness = witness.to_owned();
@@ -394,35 +405,38 @@ fn proof_benchmark(
             r1cs::prove(cs, pk, witness, net0, net1).context("while generating Groth16 proof")?;
 
         let duration = start.elapsed().as_micros() as f64;
-        times.push(duration);
 
         let stats_after = net0.get_connection_stats();
         let stats = stats_after.get_diff_to(&stats_before);
 
-        send_receive_prev.push((
-            stats
-                .get(&(protocol.id.prev() as usize))
-                .expect("invalid party id in stats")
-                .0,
-            stats
-                .get(&(protocol.id.prev() as usize))
-                .expect("invalid party id in stats")
-                .1,
-        ));
-        send_receive_next.push((
-            stats
-                .get(&(protocol.id.next() as usize))
-                .expect("invalid party id in stats")
-                .0,
-            stats
-                .get(&(protocol.id.next() as usize))
-                .expect("invalid party id in stats")
-                .1,
-        ));
-
         // Verify proof
         if !r1cs::verify(&pk.vk, &proof, &public_inputs)? {
             return Err(eyre!("Proof verification failed"));
+        }
+
+        if i > 0 {
+            times.push(duration);
+
+            send_receive_prev.push((
+                stats
+                    .get(&(protocol.id.prev() as usize))
+                    .expect("invalid party id in stats")
+                    .0,
+                stats
+                    .get(&(protocol.id.prev() as usize))
+                    .expect("invalid party id in stats")
+                    .1,
+            ));
+            send_receive_next.push((
+                stats
+                    .get(&(protocol.id.next() as usize))
+                    .expect("invalid party id in stats")
+                    .0,
+                stats
+                    .get(&(protocol.id.next() as usize))
+                    .expect("invalid party id in stats")
+                    .1,
+            ));
         }
     }
 
